@@ -134,6 +134,8 @@
 	#define OV7670_REG_BRIGHT      0x55    /* Brightness */
 	#define OV7670_REG_CONTRAS     0x56    /* Contrast control */
 	#define OV7670_REG_GFIX        0x69    /* Fix gain control */
+#define OV7670_REG_SCALING_XSC 0x70
+#define OV7670_REG_SCALING_YSC 0x71
 	#define OV7670_REG_REG76       0x76    /* OV's name */
 	#define OV7670_R76_BLKPCOR     0x80    /* Black pixel correction enable */
 	#define OV7670_R76_WHTPCOR     0x40    /* White pixel correction enable */

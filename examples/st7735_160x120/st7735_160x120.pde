@@ -20,22 +20,17 @@
 //ST7735             UNO
 //------             ---
 //SCK                13
-//MISO               12
 //MOSI               11
-//TFT_CS             A3   Must be unique
-//D/C                7
-//CARD_CS            4    Must be unique
+//TFT_CS             4   Must be unique
+//D/C                10
 
-// You must use the following pins for the LCD to avoid conflicts with the OV7670
-#define sclk  13
-#define miso  12
-#define mosi  11
-#define lcdcs A3
-#define dc    7
-#define sdcs  4
-#define rst   0 // Connect this to the Arduino reset
-
-#define DEBUG  // Leave this uncommented to display debug information as well
+// You can use any (4 or) 5 pins
+#define sclk 13
+#define mosi 11
+#define lcdcs   4
+#define dc   10
+#define rst  -1  // you can also connect this to the Arduino reset
+//#define DEBUG  // Leave this uncommented to display debug information as well
 
 #include <Wire.h>
 #include <SPI.h>
@@ -96,9 +91,9 @@ void setup(void)
   // If your TFT's plastic wrap has a Red Tab, use the following:
   // tft.initR(INITR_REDTAB);   // initialize a ST7735R chip, red tab
   // If your TFT's plastic wrap has a Green Tab, use the following:
-  tft.initR(INITR_GREENTAB); // initialize a ST7735R chip, green tab
+  tft.initR(INITR_REDTAB); // initialize a ST7735R chip, green tab
   
-  tft.fillScreen(ST7735_BLUE);
+  tft.fillScreen(ST7735_BLACK);
 
   Serial.println("Configuring the OV7670 Camera ...");
   // Make sure pins are setup for the camera
@@ -127,7 +122,7 @@ void setup(void)
   // Output the results to the display
   Serial.println("Starting buffer read");
   ov7670.bufferStart();
-   
+   ov7670.bufferReadByte();
   for (int y = 0; y < SIZEY; y++) {
     uint8_t r,g,b,d1,d2 ;
     uint16_t rgb565;
@@ -139,7 +134,7 @@ void setup(void)
       // Data is in RGB565 format
       d1 = ov7670.bufferReadByte(); // bbbbbggg
       d2 = ov7670.bufferReadByte(); // gggrrrrr
-      rgb565 = (d1 << 8) | d2;
+      rgb565 = d1; rgb565 <<=8; rgb565 |= d2;
       setLCDPins();
       tft.drawPixel(y, x, rgb565);
       // tft.drawPixel(y, x, ST7735_RED);

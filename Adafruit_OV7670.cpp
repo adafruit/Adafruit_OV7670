@@ -179,14 +179,16 @@ int8_t Adafruit_OV7670::begin() {
   wireReadRegister(OV7670_REG_PID, &value);
   if (value != 0x76)
   {
-    return -1;
+    Serial.print("Read PID "); Serial.println(value, HEX);
+    //return -1;
   }
   
   // Check version ID
   wireReadRegister(OV7670_REG_VER, &value);
-  if (value != 0x73)
+  if (value != 0x70)
   {
-    return -1;
+    Serial.print("Read VER "); Serial.println(value, HEX);
+    //return -1;
   }
   
   // Put the camera registers in a known state
@@ -210,6 +212,13 @@ int8_t Adafruit_OV7670::begin() {
   wireWriteRegister(OV7670_REG_COM14,       0x1a); // Divide PCLK by 4, Manual Scaling Adj
   wireWriteRegister(OV7670_REG_SCALINGDCW,  0x22); // Horizontal divide by 4, Vertical divide by 4
   wireWriteRegister(OV7670_REG_SCALINGPCLK, 0xf2); // Divide by 4, Enable clock divider
+
+  // color bars!
+  //wireWriteRegister(OV7670_REG_COM7,        0x06);  // enable color bar
+  //wireWriteRegister(OV7670_REG_COM17, 0x00);            // DSP color bars
+  // wireWriteRegister(OV7670_REG_SCALING_XSC, 0x3A | 0x80);      // select test output
+  //wireWriteRegister(OV7670_REG_SCALING_YSC, 0x35);
+
 
   // Color Settings
   wireWriteRegister(0x4f, 0x80);
