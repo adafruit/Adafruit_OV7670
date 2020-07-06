@@ -1,0 +1,108 @@
+// OV7670 camera WIP for Grand Central.
+
+#include <Wire.h>
+#include "Adafruit_OV7670.h"
+#include "Adafruit_ILI9341.h"
+
+#if defined(__SAMD51__)
+OV7670_arch_t arch = { .timer = TCC1, .xclk_pdec = false };
+// To use screen DMA, USE_SPI_DMA *must* be manually enabled in
+// Adafruit_SPITFT.h (it's commented out by default on Grand Central,
+// only a few boards with built-in screens have it on by default).
+#if !defined(USE_SPI_DMA)
+#include "SPIBrute.h" // Direct-to-SPI-registers helper class
+#endif // end USE_SPI_DMA
+#endif // end __SAMD51__
+
+// Shield pinout. Switch these if using Feather (DC=10, CS=9)
+#define TFT_DC   9
+#define TFT_CS   10
+#define TFT_SPI  SPI
+Adafruit_ILI9341 tft(&TFT_SPI, TFT_DC, TFT_CS);
+#if defined(USE_SPI_BRUTE)
+SPIBrute brute(&TFT_SPI);
+#endif
+
+#define CAM_ENABLE PIN_PCC_D8
+#define CAM_RESET  PIN_PCC_D9
+#define CAM_XCLK   PIN_PCC_XCLK
+Adafruit_OV7670 cam(OV7670_ADDR, CAM_ENABLE, CAM_RESET, CAM_XCLK, &Wire1, &arch);
+
+void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+  digitalWrite(LED_BUILTIN, LOW);
+
+  Serial.begin(9600);
+  //while (!Serial);
+  Serial.println("Hello"); Serial.flush();
+
+  // Once started, the camera continually fills a frame buffer
+  // automagically; no need to request a frame.
+  OV7670_status status = cam.begin();
+  if(status != OV7670_STATUS_OK) {
+    Serial.println("Camera begin() fail"); Serial.flush();
+  }
+
+  uint8_t pid = cam.readRegister(OV7670_REG_PID); // Should be 0x76
+  uint8_t ver = cam.readRegister(OV7670_REG_VER); // Should be 0x73
+
+  Serial.println(pid, HEX);
+  Serial.println(ver, HEX);
+
+  // 50 MHz to screen is OK if wiring is clean (e.g. shield or FeatherWing)
+  TFT_SPI.setClockSource(SERCOM_CLOCK_SOURCE_100M);
+  tft.begin(50000000);
+  // Otherwise (if using jumper wires to screen), stick to 24 MHz:
+  //tft.begin(24000000);
+  tft.setRotation(3);
+  tft.fillScreen(ILI9341_BLUE);
+#if defined(USE_SPI_BRUTE)
+  brute.begin();
+#endif
+}
+
+#define KEYFRAME 30   // Periodically issue setAddrWindow commands
+uint32_t frame = 999; // Force 1st frame as keyframe
+
+void loop() {
+  Serial.println("ping");
+
+  // setAddrWindow() involves a lot of context switching that can
+  // slow things down a bit, so we don't do it on every frame.
+  // Instead, it's only set periodically, and we just keep writing
+  // data to the same area of the screen (it wraps around automatically).
+  // We do need an OCCASIONAL setAddrWindow() in case SPI glitches,
+  // as this syncs things up to a known region of the screen again.
+  if(++frame >= KEYFRAME) {
+    frame = 0;
+#if defined(USE_SPI_DMA)
+    tft.dmaWait(); // Wait for prior transfer to complete
+#elif defined(USE_SPI_BRUTE)
+    brute.wait();
+#endif
+    tft.endWrite();   // Close out prior transfer
+    tft.startWrite(); // and start a fresh one (required)
+    tft.setAddrWindow(0, 0, 320, 240);
+  }
+
+  // Pause the camera DMA - hold buffer steady to avoid tearing
+  cam.suspend();
+
+//  cam.cap(); // Manual capture instead of PCC DMA
+
+  // Camera data arrives in big-endian order...same as the TFT,
+  // so data can just be issued directly, no byte-swap needed.
+  // Both the DMA and brute cases handle this.
+
+#if defined(USE_SPI_DMA)
+  tft.dmaWait();
+  tft.writePixels(cam.getBuffer(), 320 * 240, false, true);
+#elif defined(USE_SPI_BRUTE)
+  brute.wait();
+  brute.write((uint8_t *)cam.getBuffer(), 320 * 240 * 2);
+#else
+  tft.writePixels(cam.getBuffer(), 320 * 240, false, true);
+#endif
+
+  cam.resume(); // Resume DMA to camera buffer
+}
