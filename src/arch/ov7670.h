@@ -1,7 +1,7 @@
 #pragma once
 
 // IMPORTANT: #include ALL of the arch-specific .h files here.
-// They have include guards to only take effect on the active architecture.
+// They have #ifdef checks to only take effect on the active architecture.
 #include "samd51.h"
 
 #if defined(ARDUINO)
