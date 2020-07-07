@@ -69,9 +69,26 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
   // turn calls the device-specific C init OV7670_arch_begin() in samd51.c.
 
   OV7670_host host;
-  // host.arch = arch
-  // host.value = value;
-  // etc.
+  host.arch = &arch;        // Point to struct in Adafruit_OV7670 class
+  if(arch_defaults) {
+    arch.timer = TCC1;      // Use default timer
+    arch.xclk_pdec = false; // and default pin MUX
+  }
+  host.platform = this;     // Pointer back to Arduino_OV7670 object
+  host.pin[OV7670_PIN_XCLK] = xclk_pin;
+  host.pin[OV7670_PIN_PCLK] = OV7670_PIN_PCLK;
+  host.pin[OV7670_PIN_VSYNC] = PIN_PCC_DEN1;
+  host.pin[OV7670_PIN_HSYNC] = PIN_PCC_DEN2;
+  host.pin[OV7670_PIN_D0] = PIN_PCC_D0;
+  host.pin[OV7670_PIN_D1] = PIN_PCC_D1;
+  host.pin[OV7670_PIN_D2] = PIN_PCC_D2;
+  host.pin[OV7670_PIN_D3] = PIN_PCC_D3;
+  host.pin[OV7670_PIN_D4] = PIN_PCC_D4;
+  host.pin[OV7670_PIN_D5] = PIN_PCC_D5;
+  host.pin[OV7670_PIN_D6] = PIN_PCC_D6;
+  host.pin[OV7670_PIN_D7] = PIN_PCC_D7;
+  host.pin[OV7670_PIN_RESET] = reset_pin;
+  host.pin[OV7670_PIN_ENABLE] = enable_pin;
 
   OV7670_status status;
   status = OV7670_begin(&host);

@@ -26,17 +26,9 @@ enum OV7670_downsample {
   OV7670_DOWNSAMPLE_8,     ///< 1:8 downsampling
 };
 
-/*
-// These go into host struct:
-// Or wait, no, I think TwoWire can be normal, is an Arduino thing.
-void *timer = NULL,
-bool pdec = false);
-*/
-
 /*!
     @brief  Class encapsulating OV7670 camera functionality.
 */
-
 class Adafruit_OV7670 {
 public:
   Adafruit_OV7670(uint8_t addr = OV7670_ADDR, OV7670_pin enable = -1,
@@ -80,13 +72,14 @@ public:
 
 private:
   OV7670_status arch_begin(void); ///< Architecture-specific periph setup
+  TwoWire *wire;                  ///< I2C interface
+  uint16_t *buffer;               ///< Camera buffer allocated by lib
   OV7670_arch arch;               ///< Architecture-specific peripheral info
+  uint16_t _width;                ///< Current settings width
+  uint16_t _height;               ///< Current settings height
   const uint8_t i2c_address;      ///< I2C address
   const OV7670_pin enable_pin;    ///< Pin # for camera enable (active low)
   const OV7670_pin reset_pin;     ///< Pin # for camera reset
   const OV7670_pin xclk_pin;      ///< Pin # for camera XCLK
-  TwoWire *wire;                  ///< I2C interface
-  uint16_t *buffer;               ///< Camera buffer allocated by lib
-  uint16_t _width;                ///< Current settings width
-  uint16_t _height;               ///< Current settings height
+  const bool arch_defaults;       ///< If true, arch struct is set to defaults
 };

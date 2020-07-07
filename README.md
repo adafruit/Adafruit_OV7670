@@ -88,3 +88,7 @@ the corresponding header file in ov7670.h, so the C and C++ code that build
 atop this will pick up the specifics for the device.**
 
 Finer details are in comments peppered throughout the source.
+
+The Arduino library and examples make use of an architecture-specific "arch"
+structure. This is kind of gross, but after much deliberation it seemed just
+slightly less gross than the alternative. There's some notes in the .cpp.

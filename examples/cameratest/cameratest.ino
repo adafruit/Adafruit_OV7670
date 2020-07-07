@@ -5,7 +5,10 @@
 #include <Wire.h>
 
 #if defined(__SAMD51__) // Grand Central or other M4 boards
-// The arch structure is different for each supported device
+// The arch structure is different for each supported device.
+// On SAMD51, these indicate which timer peripheral is connected
+// to the camera's XCLK pin, and (if the timer is a TCC rather than
+// TC), whether the pin MUX for that timer requires PDEC vs TIMER_ALT.
 OV7670_arch arch = {.timer = TCC1, .xclk_pdec = false};
 // To use screen DMA on SAMD51, USE_SPI_DMA *must* be manually enabled
 // in Adafruit_SPITFT.h. Only a few boards with built-in screens have

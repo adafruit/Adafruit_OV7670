@@ -40,10 +40,10 @@ typedef enum {
   OV7670_PIN_D5,
   OV7670_PIN_D6,
   OV7670_PIN_D7,
-  OV7670_PIN_SDA,
-  OV7670_PIN_SCL,
   OV7670_PIN_RESET,
   OV7670_PIN_ENABLE,
+  OV7670_PIN_SDA,
+  OV7670_PIN_SCL,
   OV7670_NUM_PINS,
 } OV7670_PIN_INDEX;
 
@@ -53,9 +53,9 @@ typedef struct {
 } OV7670_command;
 
 typedef struct {
-  OV7670_arch arch;     ///< Architecture-specific config data
-  void       *platform; ///< Platform-specific data (e.g. Arduino C++ object)
-  int16_t     pin[OV7670_NUM_PINS]; ///< List of pin numbers (see below)
+  OV7670_arch *arch;     ///< Architecture-specific config data
+  void        *platform; ///< Platform-specific data (e.g. Arduino C++ object)
+  int16_t      pin[OV7670_NUM_PINS]; ///< List of pin numbers (see below)
 } OV7670_host;
 
 #define OV7670_ADDR 0x21 //< Default I2C address if unspecified

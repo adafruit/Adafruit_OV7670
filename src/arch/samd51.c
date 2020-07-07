@@ -104,7 +104,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   // Scan timer[] list until a matching timer/TCC is found...
   for (timer_list_index = 0;
        (timer_list_index < sizeof timer / sizeof timer[0]) &&
-       (timer[timer_list_index].base != host->arch.timer);
+       (timer[timer_list_index].base != host->arch->timer);
        timer_list_index++) {
     if (!timer[timer_list_index].base) { // NULL separator?
       is_tcc = true; // In the TCC (not TC) part of the list now
@@ -152,7 +152,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
       ;
 
 #if defined(ARDUINO)
-    pinPeripheral(host->pin[OV7670_PIN_XCLK], host->arch.xclk_pdec ?
+    pinPeripheral(host->pin[OV7670_PIN_XCLK], host->arch->xclk_pdec ?
       PIO_TCC_PDEC : PIO_TIMER_ALT);
 #else
     // CircuitPython, etc. pin mux here
