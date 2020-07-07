@@ -51,33 +51,20 @@ and avoids inter-byte delays sometimes seen with SPI.transfer(), that's all.
 
 ## Files
 
-`examples/`
-
-`  cameratest/`
-
-`    cameratest.ino`  Grand Central demo, OV7670 to ILI9341 TFT shield
-
-`src/`
-
-`  Adafruit_OV7670.cpp`  Arduino class functions
-
-`  Adafruit_OV7670.h`    Arduino class header
-
-`  SPIBrute.cpp`         SAMD51-specific class, see notes above
-
-`  SPIBrute.h`           same
-
-`src/arch/`
-
-`  ov7670.c`             Architecture- and platform-neutral functions in C
-
-`  ov7670.h`             Header for ov7670.c
-
-`  samd51.c`             SAMD51 arch-specific, platform-neutral functions in C
-
-`  samd51.h`             Header for samd51.c
-
-`  samd51_arduino.cpp`   SAMD51 arch- and Arduino-specific functions in C++
+    examples/
+        cameratest/
+            cameratest.ino  Grand Central demo, OV7670 to ILI9341 TFT shield
+    src/
+        Adafruit_OV7670.cpp  Arduino class functions
+        Adafruit_OV7670.h    Arduino class header
+        SPIBrute.cpp         SAMD51-specific class, see notes above
+        SPIBrute.h           same
+    src/arch/
+        ov7670.c             Architecture- and platform-neutral functions in C
+        ov7670.h             Header for ov7670.c
+        samd51.c             SAMD51 arch-specific, platform-neutral functions in C
+        samd51.h             Header for samd51.c
+        samd51_arduino.cpp   SAMD51 arch- and Arduino-specific functions in C++
 
 Architecture- and/or platform-specific files contain #ifdef checks since some
 platforms (e.g. Arduino) will compile all source files in the directory and
