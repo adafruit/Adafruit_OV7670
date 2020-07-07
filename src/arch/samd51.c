@@ -33,10 +33,7 @@
 // SAMD51 host config sets up timer and parallel capture peripheral,
 // as these are mostly low-level register twiddles. It does NOT set up
 // DMA transfers, handled in higher-level calling code if needed.
-OV7670_status OV7670_arch_begin(OV7670_host_t *host) {
-
-  // Cast void* pointer in host struct to device-native structure
-//  OV7670_arch_t *arch = host.arch;
+OV7670_status OV7670_arch_begin(OV7670_host *host) {
 
   // LOOK UP TIMER OR TCC BASED ON ADDRESS IN HOST STRUCT ------------------
 

@@ -39,9 +39,9 @@ bool pdec = false);
 
 class Adafruit_OV7670 {
 public:
-  Adafruit_OV7670(uint8_t addr = OV7670_ADDR, OV7670_pin_t enable = -1,
-    OV7670_pin_t reset = -1, OV7670_pin_t xclk = -1, TwoWire *twi_ptr = &Wire,
-    OV7670_arch_t *arch_ptr = NULL);
+  Adafruit_OV7670(uint8_t addr = OV7670_ADDR, OV7670_pin enable = -1,
+    OV7670_pin reset = -1, OV7670_pin xclk = -1, TwoWire *twi_ptr = &Wire,
+    OV7670_arch *arch_ptr = NULL);
   ~Adafruit_OV7670();
   // TO DO: pass initial resolution to begin() function
   OV7670_status begin(void);
@@ -79,21 +79,14 @@ public:
   void cap2(void);
 
 private:
-  OV7670_status arch_begin(void);
-  OV7670_arch_t arch;
-  const uint8_t i2c_address;  ///< I2C address
-  const int enable_pin;       ///< Pin # for camera enable (active low)
-  const int reset_pin;        ///< Pin # for camera reset
-  const int xclk_pin;         ///< Pin # for camera XCLK
-// These are now in arch struct:
-//  const void *xclk_timer;     ///< TC or TCC peripheral for XCLK
-//  const bool pdec;            ///< XCLK pin periph is TCC_PDEC, not TIMER_ALT
-  TwoWire *wire;              ///< I2C interface
-  uint16_t *buffer;           ///< Camera buffer allocated by lib
-  uint16_t _width;            ///< Current settings width
-  uint16_t _height;           ///< Current settings height
-  // These are SAMD-specific and should maybe just go in the arch/samd51.cpp
-  // file as standalone variables (only a single instance is allowed anyway).
-  Adafruit_ZeroDMA dma;       ///< DMA channel
-  DmacDescriptor *descriptor; ///< DMA descriptor
+  OV7670_status arch_begin(void); ///< Architecture-specific periph setup
+  OV7670_arch arch;               ///< Architecture-specific peripheral info
+  const uint8_t i2c_address;      ///< I2C address
+  const OV7670_pin enable_pin;    ///< Pin # for camera enable (active low)
+  const OV7670_pin reset_pin;     ///< Pin # for camera reset
+  const OV7670_pin xclk_pin;      ///< Pin # for camera XCLK
+  TwoWire *wire;                  ///< I2C interface
+  uint16_t *buffer;               ///< Camera buffer allocated by lib
+  uint16_t _width;                ///< Current settings width
+  uint16_t _height;               ///< Current settings height
 };

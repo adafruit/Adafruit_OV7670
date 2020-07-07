@@ -3,12 +3,12 @@
 #include <Wire.h>
 
 // timer and pdec will instead go in host struct
-Adafruit_OV7670::Adafruit_OV7670(uint8_t addr, OV7670_pin_t enable,
-  OV7670_pin_t reset, OV7670_pin_t xclk, TwoWire *twi_ptr,
-  OV7670_arch_t *arch_ptr) : i2c_address(addr & 0x7f), enable_pin(enable),
+Adafruit_OV7670::Adafruit_OV7670(uint8_t addr, OV7670_pin enable,
+  OV7670_pin reset, OV7670_pin xclk, TwoWire *twi_ptr,
+  OV7670_arch *arch_ptr) : i2c_address(addr & 0x7f), enable_pin(enable),
   reset_pin(reset), xclk_pin(xclk), wire(twi_ptr), buffer(NULL) {
   if(arch_ptr) {
-    memcpy(&arch, arch_ptr, sizeof(OV7670_arch_t));
+    memcpy(&arch, arch_ptr, sizeof(OV7670_arch));
   }
 }
 

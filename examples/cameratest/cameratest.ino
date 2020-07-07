@@ -1,46 +1,50 @@
 // OV7670 camera WIP for Grand Central.
 
-#include <Wire.h>
-#include "Adafruit_OV7670.h"
 #include "Adafruit_ILI9341.h"
+#include "Adafruit_OV7670.h"
+#include <Wire.h>
 
-#if defined(__SAMD51__)
-OV7670_arch_t arch = { .timer = TCC1, .xclk_pdec = false };
-// To use screen DMA, USE_SPI_DMA *must* be manually enabled in
-// Adafruit_SPITFT.h (it's commented out by default on Grand Central,
-// only a few boards with built-in screens have it on by default).
+#if defined(__SAMD51__) // Grand Central or other M4 boards
+// The arch structure is different for each supported device
+OV7670_arch arch = {.timer = TCC1, .xclk_pdec = false};
+// To use screen DMA on SAMD51, USE_SPI_DMA *must* be manually enabled
+// in Adafruit_SPITFT.h. Only a few boards with built-in screens have
+// it on by default.
 #if !defined(USE_SPI_DMA)
-#include "SPIBrute.h" // Direct-to-SPI-registers helper class
-#endif // end USE_SPI_DMA
-#endif // end __SAMD51__
+#include "SPIBrute.h" // Direct-to-SPI-registers helper class for SAMD51
+#endif                // end USE_SPI_DMA
+#endif                // end __SAMD51__
 
-// Shield pinout. Switch these if using Feather (DC=10, CS=9)
-#define TFT_DC   9
-#define TFT_CS   10
-#define TFT_SPI  SPI
+// TFT shield pinout. Switch these if using Feather (DC=10, CS=9)
+#define TFT_DC 9
+#define TFT_CS 10
+#define TFT_SPI SPI
 Adafruit_ILI9341 tft(&TFT_SPI, TFT_DC, TFT_CS);
 #if defined(USE_SPI_BRUTE)
 SPIBrute brute(&TFT_SPI);
 #endif
 
 #define CAM_ENABLE PIN_PCC_D8
-#define CAM_RESET  PIN_PCC_D9
-#define CAM_XCLK   PIN_PCC_XCLK
-Adafruit_OV7670 cam(OV7670_ADDR, CAM_ENABLE, CAM_RESET, CAM_XCLK, &Wire1, &arch);
+#define CAM_RESET PIN_PCC_D9
+#define CAM_XCLK PIN_PCC_XCLK
+Adafruit_OV7670 cam(OV7670_ADDR, CAM_ENABLE, CAM_RESET, CAM_XCLK, &Wire1,
+                    &arch);
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
 
   Serial.begin(9600);
-  //while (!Serial);
-  Serial.println("Hello"); Serial.flush();
+  // while (!Serial);
+  Serial.println("Hello");
+  Serial.flush();
 
   // Once started, the camera continually fills a frame buffer
   // automagically; no need to request a frame.
   OV7670_status status = cam.begin();
-  if(status != OV7670_STATUS_OK) {
-    Serial.println("Camera begin() fail"); Serial.flush();
+  if (status != OV7670_STATUS_OK) {
+    Serial.println("Camera begin() fail");
+    Serial.flush();
   }
 
   uint8_t pid = cam.readRegister(OV7670_REG_PID); // Should be 0x76
@@ -49,11 +53,14 @@ void setup() {
   Serial.println(pid, HEX);
   Serial.println(ver, HEX);
 
-  // 50 MHz to screen is OK if wiring is clean (e.g. shield or FeatherWing)
+  // 50 MHz to screen is OK if wiring is clean (e.g. shield or FeatherWing).
+  // Otherwise (if using jumper wires to screen), stick to 24 MHz.
+#if defined(__SAMD51__)
   TFT_SPI.setClockSource(SERCOM_CLOCK_SOURCE_100M);
   tft.begin(50000000);
-  // Otherwise (if using jumper wires to screen), stick to 24 MHz:
-  //tft.begin(24000000);
+#else
+  tft.begin(24000000);
+#endif
   tft.setRotation(3);
   tft.fillScreen(ILI9341_BLUE);
 #if defined(USE_SPI_BRUTE)
@@ -73,7 +80,7 @@ void loop() {
   // data to the same area of the screen (it wraps around automatically).
   // We do need an OCCASIONAL setAddrWindow() in case SPI glitches,
   // as this syncs things up to a known region of the screen again.
-  if(++frame >= KEYFRAME) {
+  if (++frame >= KEYFRAME) {
     frame = 0;
 #if defined(USE_SPI_DMA)
     tft.dmaWait(); // Wait for prior transfer to complete
@@ -88,7 +95,7 @@ void loop() {
   // Pause the camera DMA - hold buffer steady to avoid tearing
   cam.suspend();
 
-//  cam.cap(); // Manual capture instead of PCC DMA
+  //  cam.cap(); // Manual capture instead of PCC DMA
 
   // Camera data arrives in big-endian order...same as the TFT,
   // so data can just be issued directly, no byte-swap needed.

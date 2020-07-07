@@ -53,10 +53,10 @@ typedef struct {
 } OV7670_command;
 
 typedef struct {
-  OV7670_arch_t arch;     ///< Architecture-specific config data
-  void         *platform; ///< Platform-specific data (e.g. Arduino C++ object)
-  int16_t       pin[OV7670_NUM_PINS]; ///< List of pin numbers (see below)
-} OV7670_host_t;
+  OV7670_arch arch;     ///< Architecture-specific config data
+  void       *platform; ///< Platform-specific data (e.g. Arduino C++ object)
+  int16_t     pin[OV7670_NUM_PINS]; ///< List of pin numbers (see below)
+} OV7670_host;
 
 #define OV7670_ADDR 0x21 //< Default I2C address if unspecified
 
@@ -249,7 +249,7 @@ typedef struct {
 extern "C" {
 #endif
 
-extern OV7670_status OV7670_begin(OV7670_host_t *host);
+extern OV7670_status OV7670_begin(OV7670_host *host);
 
 #ifdef __cplusplus
 };

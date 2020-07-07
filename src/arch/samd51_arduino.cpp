@@ -17,36 +17,38 @@
 // a single OV7670 can be active (probably no big deal, as there's only a
 // single parallel capture peripheral).
 
-static Adafruit_ZeroDMA *_dmaPtr = NULL;
-static volatile bool _frameReady = false; // true at end-of-frame
-static volatile bool _suspended = false;
+static Adafruit_ZeroDMA dma;
+static DmacDescriptor *descriptor;     ///< DMA descriptor
+static volatile bool frameReady = false; // true at end-of-frame
+static volatile bool suspended = false;
+
 
 // INTERRUPT HANDLING AND RELATED CODE -------------------------------------
 
 // Pin interrupt on VSYNC calls this to start DMA transfer (unless suspended).
-static void _startFrame(void) {
-  if (_dmaPtr && !_suspended) {
-    _frameReady = false;
-    (void)_dmaPtr->startJob();
+static void startFrame(void) {
+  if (!suspended) {
+    frameReady = false;
+    (void)dma.startJob();
   }
 }
 
 // End-of-DMA-transfer callback
-static void _dmaCallback(Adafruit_ZeroDMA *dma) { _frameReady = true; }
+static void _dmaCallback(Adafruit_ZeroDMA *dma) { frameReady = true; }
 
 // Since ZeroDMA suspend/resume functions don't yet work, these functions
 // use static vars to indicate whether to trigger DMA transfers or hold off
 // (camera keeps running, data is simply ignored without a DMA transfer).
 
 void Adafruit_OV7670::suspend(void) {
-  while (!_frameReady)
-    ;                // Wait for current frame to finish loading
-  _suspended = true; // Don't load next frame (camera runs, DMA stops)
+  while (!frameReady)
+    ;               // Wait for current frame to finish loading
+  suspended = true; // Don't load next frame (camera runs, DMA stops)
 }
 
 void Adafruit_OV7670::resume(void) {
-  _frameReady = false;
-  _suspended = false; // Resume DMA transfers
+  frameReady = false;
+  suspended = false; // Resume DMA transfers
 }
 
 
@@ -66,7 +68,7 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
   // This calls the device-neutral C init function OV7670_begin(), which in
   // turn calls the device-specific C init OV7670_arch_begin() in samd51.c.
 
-  OV7670_host_t host;
+  OV7670_host host;
   // host.arch = arch
   // host.value = value;
   // etc.
@@ -79,8 +81,6 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
 
   // ARDUINO-SPECIFIC EXTRA INITIALIZATION ---------------------------------
   // Sets up DMA for the parallel capture controller.
-
-  _dmaPtr = &dma; // Required global for interrupt function
 
   ZeroDMAstatus dma_status = dma.allocate();
   // To do: handle dma_status here, map to OV7670_status on error
@@ -100,10 +100,81 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
   // A pin FALLING interrupt is used to detect the start of a new frame.
   // Seems like the PCC RXBUFF and/or ENDRX interrupts could take care
   // of this, but in practice that didn't seem to work.
-  attachInterrupt(PIN_PCC_DEN1, _startFrame, FALLING);
+  attachInterrupt(PIN_PCC_DEN1, startFrame, FALLING);
 
   return status;
 }
+
+// Host-specific .cpp must provide this function with same name, arguments
+// and return type. Not a virtual function because it's not a subclass.
+// Though wondering now if it should be. But I don't like the idea of each
+// architecture requiring its own constructor name/call. Is that really
+// any worse than setting up the arch struct though?
+
+/*
+ifdef device
+  arch = { ... }
+endif
+constructor( ..., arch)
+
+vs
+if device
+  constructor ( ..., ... )
+endif
+
+I suppose it's fewer lines that way
+
+There would then be
+Adafruit_OV7670_SAMD51
+Adafruit_OV7670_iMX
+Adafruit_OV7670_ESP32
+and so forth
+but never simply
+Adafruit_OV7670
+
+OH WAIT.
+I think the reason this is NOT done
+is that sketches would need to include a specific .h for each arch,
+i.e. #include <Adafruit_OV7670_SAMD51>
+and THEN the special declaration also
+and I don't really like that.
+
+I suppose it's possible for a main .h to include any arch-specific .h,
+and then always name the subclass the same thing, but with different
+constructor args.
+So there'd be like Adafruit_OV7670_core that the user never sees,
+and Adafruit_OV7670 (a subclass of core) that they do see, and which
+has different arguments depending on arch.
+Adafruit_OV7670.h would include the core class and then
+all the subclass .h files.
+Seems a mess. But so is the arch struct.
+Also, having the virtual func would make it easier to enforce that
+architectures implement specific functions by name.
+
+Well...the arch struct goes down to the C code anyway, and is going
+to exist regardles. So maybe just stick with it? It inflicts a lot
+on the user, but that info needs to go somewhere anyway, whether in
+the constructor or in a special struct.
+
+Okay decided: will stick with arch struct rather than subclasses.
+The middle-layer C code needs that struct to pass down to the arch-specific
+C code anyway. With per-device constructors, the Arduino sketches will
+need ifdefs anyway. Subclasses would mean a third place where per-device
+ifdefs would need to happen.
+
+Only arguments in favor of the subclass thing are
+- can use defaults for those weird arguments in constructor, and if they're
+good defaults, the user will never need to see them and the constructor
+looks the same on most devices.
+- Can put the DMA and descriptor instances in the subclass, allowing
+multiple OV7670 instances. But since there's only one PCC anyway, there
+can be only one instance.
+Unless...having both PCC and bitbang instances present is an option.
+So basically, multiple cameras. I think that's all it comes down to.
+But we could do that with the arch structure anyway I think.
+
+
+*/
 
 void Adafruit_OV7670::capture(void) {
   volatile uint32_t *vsync_reg, *hsync_reg;

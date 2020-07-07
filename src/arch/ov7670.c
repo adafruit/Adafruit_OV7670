@@ -163,7 +163,7 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_LAST + 1, 0x00}, // End-of-data marker
 };
 
-OV7670_status OV7670_begin(OV7670_host_t *host) {
+OV7670_status OV7670_begin(OV7670_host *host) {
   OV7670_status status;
 
   // I2C must already be set up and running (@ 100 KHz) in calling code

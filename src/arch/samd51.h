@@ -7,13 +7,13 @@
 #include <stdbool.h>
 #endif // end platforms
 
-typedef int8_t OV7670_pin_t;
+typedef int8_t OV7670_pin;
 
 // Device-specific structure attached to the OV7670_host.arch pointer.
 typedef struct {
   void   *timer; ///< TC or TCC peripheral base address for XCLK out
   bool    xclk_pdec; ///< If true, XCLK needs special PDEC pin mux
-} OV7670_arch_t;
+} OV7670_arch;
 
 #ifdef __cplusplus
 extern "C" {

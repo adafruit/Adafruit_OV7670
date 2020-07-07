@@ -9,68 +9,82 @@ library, see the included Arduino example(s).
 
 ## Terminology
 
-In order to understand, discuss and adapt the code, a basic vernacular
-must be established. The terms chosen here are probably not optimal, but
-applied consistently will suffice in allowing different elements of the
-code to be discussed relative to one another. These are the terms used
-in the comments and in naming of structures and types.
+To understand, discuss and adapt the code, a basic vernacular should be
+established. The terms chosen here are probably not optimal, but applied
+consistently will suffice in allowing different elements of the code to
+be discussed relative to one another. These are the terms used in the
+comments and in naming of structures and types.
 
 An "architecture" refers to a related family of microcontroller devices
 where certain peripherals are implemented in-common. For example, SAMD51
 is an architecture distinct from SAMD21 (though both ARM-based), because
-these have a different range of peripherals, and even when there's overlap
-in functionality, the registers for configuring these peripherals may be
-different. (Note that SAMD51 is initially the only supported architecture,
-and the mention of SAMD21 is purely hypothetical. Others might be added in
-the future -- STM32, i.MX, etc. -- the code is written with that in mind
-even though there's currently just one architecture.)
-
-The source files make a reasonable attempt to keep architecture-dependent
-and device-neutral C or C++ code in separate files. There might be a few
-exceptions, always documented in the source.
+these have a different range of peripherals, and even when there's
+functional overlap, the registers for configuring these peripherals are
+often a bit different. (Note that SAMD51 is initially the only supported
+architecture, and the mention of SAMD21 is purely hypothetical and might
+never happen. Others might be added in the future -- STM32, i.MX, etc. --
+the code is written with that in mind even though there's currently just
+one architecture.)
 
 "Platform" as used in this code refers to a runtime environment, such
 as Arduino or CircuitPython. Could just as easily been "environment" or
-"language," but we'll use "platform" despite its slight ambiguity (in
-other settings it might be applied the way we use architecture, e.g. "the
-ARM platform" or similar). But here we are. It's fine.
+"language" or something else, but we'll use "platform," it's good enough.
 
 "Host" refers to a specific combination of architecture and platform (along
 with a list of pins to which an OV7670 camera is connected). Picture a table
 with architectures along one axis and platforms along the other. "SAMD51
 Arduino" is one host, "SAMD51 CircuitPython" is another.
 
+## Code structure
+
+The project is written in a combination of C and C++. The C++ parts are
+currently intended for the Arduino environment. CircuitPython development
+requires C at present, so most lower-level functionality is implemented
+there. The C part itself has two layers...one "mid layer" set of functions
+that are common to all architectures, and a "lower" layer that does
+architecture-specific things such as accessing peripheral regisetrs.
+CircuitPython support, when implemented, will probably its own topmost C
+layer, akin to the Arduino C++ layer.
+
+The code makes a reasonable attempt to keep architecture and platform
+-neutral vs -dependent C or C++ code in separate files. There might be a
+few exceptions with #ifdefs around them, always documented in the source.
+Also in comments, the terms "neutral" or "agnostic" might be used in
+different places, but same intent: non-preferential.
+
 ## SPIBrute Arduino class
 
 An extra class in here called "SPIBrute" is NOT RELATED to the OV7670
 camera itself. This SAMD51-specific class can be used to issue data to
-SPI-connected displays when DMA is not enabled in Adafruit_SPITFT (part
-of Adafruit_GFX). It's just a constructor and one function. These display
-writes are still blocking operations, but the timing is particularly tight
-and avoids inter-byte delays sometimes seen with SPI.transfer(), that's all.
+SPI-connected displays when DMA is not enabled in Adafruit_SPITFT.h (part
+of Adafruit_GFX). It's just a constructor and a couple functions. These
+display writes are still blocking operations, but the timing is particularly
+tight and avoids inter-byte delays sometimes seen with SPI.transfer(),
+that's all.
 
 ## Files
 
     examples/
         cameratest/
-            cameratest.ino  Grand Central demo, OV7670 to ILI9341 TFT shield
+            cameratest.ino   Grand Central demo, OV7670 to ILI9341 TFT shield
     src/
-        Adafruit_OV7670.cpp  Arduino class functions
-        Adafruit_OV7670.h    Arduino class header
-        SPIBrute.cpp         SAMD51-specific class, see notes above
-        SPIBrute.h           same
+        Adafruit_OV7670.cpp  Arduino C++ class functions
+        Adafruit_OV7670.h    Arduino C++ class header
+        SPIBrute.cpp         SAMD51-specific C++ class, see notes above
+        SPIBrute.h           C++ header for SPIBrute.cpp
     src/arch/
         ov7670.c             Architecture- and platform-neutral functions in C
-        ov7670.h             Header for ov7670.c
-        samd51.c             SAMD51 arch-specific, platform-neutral functions in C
+        ov7670.h             C header for ov7670.c
+        samd51.c             SAMD51 arch-specific, platform-neutral C functions
         samd51.h             Header for samd51.c
-        samd51_arduino.cpp   SAMD51 arch- and Arduino-specific functions in C++
+        samd51_arduino.cpp   SAMD51 arch- and Arduino-specific C++ functions
 
-Architecture- and/or platform-specific files contain #ifdef checks since some
-platforms (e.g. Arduino) will compile all source files in the directory and
-would otherwise break.
+Architecture- and/or platform-specific files should contain #ifdef checks
+since some platforms (e.g. Arduino) will compile all source files in the
+directory and would otherwise break.
 
-When adding support for a new device at the C level, you MUST #include the
-corresponding header file in ov7670.h.
+**When adding support for a new device at the C level, you MUST #include
+the corresponding header file in ov7670.h, so the C and C++ code that build
+atop this will pick up the specifics for the device.**
 
 Finer details are in comments peppered throughout the source.
