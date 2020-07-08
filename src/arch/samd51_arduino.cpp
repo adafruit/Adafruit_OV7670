@@ -34,7 +34,7 @@ static void startFrame(void) {
 }
 
 // End-of-DMA-transfer callback
-static void _dmaCallback(Adafruit_ZeroDMA *dma) { frameReady = true; }
+static void dmaCallback(Adafruit_ZeroDMA *dma) { frameReady = true; }
 
 // Since ZeroDMA suspend/resume functions don't yet work, these functions
 // use static vars to indicate whether to trigger DMA transfers or hold off
@@ -52,7 +52,6 @@ void Adafruit_OV7670::resume(void) {
 }
 
 
-#endif // __SAMD51__ && ARDUINO
 
 
 
@@ -76,7 +75,7 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
   }
   host.platform = this;     // Pointer back to Arduino_OV7670 object
   host.pin[OV7670_PIN_XCLK] = xclk_pin;
-  host.pin[OV7670_PIN_PCLK] = OV7670_PIN_PCLK;
+  host.pin[OV7670_PIN_PCLK] = PIN_PCC_CLK;
   host.pin[OV7670_PIN_VSYNC] = PIN_PCC_DEN1;
   host.pin[OV7670_PIN_HSYNC] = PIN_PCC_DEN2;
   host.pin[OV7670_PIN_D0] = PIN_PCC_D0;
@@ -103,7 +102,7 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
   // To do: handle dma_status here, map to OV7670_status on error
   dma.setAction(DMA_TRIGGER_ACTON_BEAT);
   dma.setTrigger(PCC_DMAC_ID_RX);
-  dma.setCallback(_dmaCallback);
+  dma.setCallback(dmaCallback);
   dma.setPriority(DMA_PRIORITY_3);
 
   // Use 32-bit PCC transfers (4 bytes accumulate in RHR.reg)
@@ -117,7 +116,7 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
   // A pin FALLING interrupt is used to detect the start of a new frame.
   // Seems like the PCC RXBUFF and/or ENDRX interrupts could take care
   // of this, but in practice that didn't seem to work.
-  attachInterrupt(PIN_PCC_DEN1, startFrame, FALLING);
+  attachInterrupt(host.pin[OV7670_PIN_VSYNC], startFrame, FALLING);
 
   return status;
 }
@@ -205,3 +204,5 @@ void Adafruit_OV7670::capture(void) {
   OV7670_capture((uint32_t *)buffer, _width, _height, vsync_reg, vsync_bit,
     hsync_reg, hsync_bit);
 }
+
+#endif // __SAMD51__ && ARDUINO

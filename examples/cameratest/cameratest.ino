@@ -38,7 +38,7 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 
   Serial.begin(9600);
-  // while (!Serial);
+   while (!Serial);
   Serial.println("Hello");
   Serial.flush();
 
@@ -98,7 +98,7 @@ void loop() {
   // Pause the camera DMA - hold buffer steady to avoid tearing
   cam.suspend();
 
-  //  cam.cap(); // Manual capture instead of PCC DMA
+//    cam.capture(); // Manual capture instead of PCC DMA
 
   // Camera data arrives in big-endian order...same as the TFT,
   // so data can just be issued directly, no byte-swap needed.
