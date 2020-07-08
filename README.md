@@ -1,7 +1,7 @@
 # Adafruit_OV7670
 
 Arduino library for OV7670 cameras, built over a C foundation common to
-both Arduino and CircuitPython.
+both Arduino and (later) CircuitPython.
 
 These notes are primarily to assist with porting to new devices and in
 creating a CircuitPython library from the lower-level code. For using the
@@ -38,13 +38,13 @@ Arduino" is one host, "SAMD51 CircuitPython" is another.
 ## Code structure
 
 The project is written in a combination of C and C++. The C++ parts are
-currently intended for the Arduino environment. CircuitPython development
+currently intended for the Arduino platform. CircuitPython development
 requires C at present, so most lower-level functionality is implemented
-there. The C part itself has two layers...one "mid layer" set of functions
-that are common to all architectures, and a "lower" layer that does
-architecture-specific things such as accessing peripheral regisetrs.
-CircuitPython support, when implemented, will probably its own topmost C
-layer, akin to the Arduino C++ layer.
+in that language. The C part itself has two layers...one "mid layer" set of
+functions that are common to all architectures, and a "lower" layer that
+does architecture-specific things such as accessing peripheral registers.
+CircuitPython support, when implemented, will probably have its own topmost
+C layer, akin to the Arduino C++ layer.
 
 The code makes a reasonable attempt to keep architecture and platform
 -neutral vs -dependent C or C++ code in separate files. There might be a
@@ -59,7 +59,7 @@ camera itself. This SAMD51-specific class can be used to issue data to
 SPI-connected displays when DMA is not enabled in Adafruit_SPITFT.h (part
 of Adafruit_GFX). It's just a constructor and a couple functions. These
 display writes are still blocking operations, but the timing is particularly
-tight and avoids inter-byte delays sometimes seen with SPI.transfer(),
+tight and avoids small inter-byte delays sometimes seen with SPI.transfer(),
 that's all.
 
 ## Files
@@ -72,7 +72,7 @@ that's all.
         Adafruit_OV7670.h    Arduino C++ class header
         SPIBrute.cpp         SAMD51-specific C++ class, see notes above
         SPIBrute.h           C++ header for SPIBrute.cpp
-    src/arch/
+    src/arch/                Mid-layer C, plus arch-specific code
         ov7670.c             Architecture- and platform-neutral functions in C
         ov7670.h             C header for ov7670.c
         samd51.c             SAMD51 arch-specific, platform-neutral C functions
@@ -80,8 +80,8 @@ that's all.
         samd51_arduino.cpp   SAMD51 arch- and Arduino-specific C++ functions
 
 Architecture- and/or platform-specific files should contain #ifdef checks
-since some platforms (e.g. Arduino) will compile all source files in the
-directory and would otherwise break.
+since some platforms (e.g. Arduino) will wanton compile all source files in
+the directory and would otherwise break.
 
 **When adding support for a new device at the C level, you MUST #include
 the corresponding header file in ov7670.h, so the C and C++ code that build
