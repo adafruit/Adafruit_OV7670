@@ -23,7 +23,7 @@ extern void OV7670_write_register(void *platform, uint8_t reg, uint8_t value);
 // First argument is a pointer to platform-specific data...e.g. on Arduno,
 // this points to a C++ object so we can find our way back to the correct
 // I2C peripheral (so this code doesn't have to deal with platform-specific
-// I2C calls)..
+// I2C calls).
 void OV7670_write_list(void *platform, OV7670_command *cmd) {
   for (int i = 0; cmd[i].reg <= OV7670_REG_LAST; i++) {
 #if 0
@@ -52,8 +52,6 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_VSTOP, 0x7B},
     {OV7670_REG_VREF, 0x08},
     {OV7670_REG_COM3, OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN},
-    //    {OV7670_REG_COM3, OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN |
-    //    OV7670_COM3_SWAP},
     {OV7670_REG_COM14, 0x00},
     {OV7670_REG_SCALING_XSC, 0x00},
     {OV7670_REG_SCALING_YSC, 0x01},

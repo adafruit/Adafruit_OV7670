@@ -38,7 +38,7 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 
   Serial.begin(9600);
-   while (!Serial);
+  // while (!Serial);
   Serial.println("Hello");
   Serial.flush();
 

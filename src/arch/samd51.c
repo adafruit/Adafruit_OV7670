@@ -176,17 +176,13 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
 
   PCC->MR.bit.PCEN = 0; // Make sure PCC is disabled before setting MR reg
 
-  // Accumulate 4 bytes into RHR register (two 16-bit pixels)
-  PCC->MR.reg = PCC_MR_CID(0x1) |   // Clear on falling edge of DEN1 (vsync)
-                PCC_MR_ISIZE(0x0) | // Input data bus is 8 bits
-                PCC_MR_DSIZE(0x2);  // "4 data" at a time (accumulate in RHR)
-
   PCC->IDR.reg = 0b1111; // Disable all PCC interrupts
   MCLK->APBDMASK.bit.PCC_ = 1; // Enable PCC clock
 
   // Set up pin MUXes for the camera clock, sync and data pins.
   // I2C pins are already configured, XCLK was done above, and
   // the reset and enable pins are handled in the calling code.
+  // Must do this before setting MR reg.
 #if defined(ARDUINO)
   pinPeripheral(host->pin[OV7670_PIN_PCLK], PIO_PCC);
   pinPeripheral(host->pin[OV7670_PIN_VSYNC], PIO_PCC);
@@ -202,6 +198,11 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
 #else
   // CircuitPython, etc. pin mux here
 #endif
+
+  // Accumulate 4 bytes into RHR register (two 16-bit pixels)
+  PCC->MR.reg = PCC_MR_CID(0x3) |   // Clear on falling DEN1 or DEN2
+                PCC_MR_ISIZE(0x0) | // Input data bus is 8 bits
+                PCC_MR_DSIZE(0x2);  // "4 data" at a time (accumulate in RHR)
 
   PCC->MR.bit.PCEN = 1; // Enable PCC
 
