@@ -20,13 +20,14 @@
 // !defined(ARDUINO) around them.
 #endif // end platforms
 
+/** Status codes returned by some functions */
 typedef enum {
   OV7670_STATUS_OK = 0,         ///< Success
   OV7670_STATUS_ERR_MALLOC,     ///< malloc() call failed
   OV7670_STATUS_ERR_PERIPHERAL, ///< Peripheral (e.g. timer) not found
 } OV7670_status;
 
-// Indices into pin list used by OV7670_begin()
+/** Indices into pin list used by OV7670_begin() */
 typedef enum {
   OV7670_PIN_XCLK = 0,
   OV7670_PIN_PCLK,
@@ -47,11 +48,13 @@ typedef enum {
   OV7670_NUM_PINS,
 } OV7670_PIN_INDEX;
 
+/** Address/value combo for OV7670 camera commands. */
 typedef struct {
-  uint8_t reg;
-  uint8_t value;
+  uint8_t reg;   ///< Register address
+  uint8_t value; ///< Value to store
 } OV7670_command;
 
+/** Architecture+platform combination structure. */
 typedef struct {
   OV7670_arch *arch;     ///< Architecture-specific config data
   void        *platform; ///< Platform-specific data (e.g. Arduino C++ object)
@@ -245,10 +248,18 @@ typedef struct {
 
 #define OV7670_REG_LAST OV7670_REG_SATCTR //< Maximum register address
 
+// C++ ACCESSIBLE FUNCTIONS ------------------------------------------------
+
+// These are declared in an extern "C" so Arduino platform C++ code can
+// access them.
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+// Architecture- and platform-neutral initialization function.
+// Called by the platform init function, this in turn may call an
+// architecture-specific init function.
 extern OV7670_status OV7670_begin(OV7670_host *host);
 
 #ifdef __cplusplus
