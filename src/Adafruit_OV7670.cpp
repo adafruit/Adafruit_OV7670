@@ -2,13 +2,13 @@
 #include <Arduino.h>
 #include <Wire.h>
 
-// timer and pdec will instead go in host struct
-Adafruit_OV7670::Adafruit_OV7670(uint8_t addr, OV7670_pin_t enable,
-  OV7670_pin_t reset, OV7670_pin_t xclk, TwoWire *twi_ptr,
-  OV7670_arch_t *arch_ptr) : i2c_address(addr & 0x7f), enable_pin(enable),
-  reset_pin(reset), xclk_pin(xclk), wire(twi_ptr), buffer(NULL) {
+Adafruit_OV7670::Adafruit_OV7670(uint8_t addr, OV7670_pin enable,
+  OV7670_pin reset, OV7670_pin xclk, TwoWire *twi_ptr,
+  OV7670_arch *arch_ptr) : i2c_address(addr & 0x7f), enable_pin(enable),
+  reset_pin(reset), xclk_pin(xclk), wire(twi_ptr),
+  arch_defaults((arch_ptr == NULL)), buffer(NULL) {
   if(arch_ptr) {
-    memcpy(&arch, arch_ptr, sizeof(OV7670_arch_t));
+    memcpy(&arch, arch_ptr, sizeof(OV7670_arch));
   }
 }
 
@@ -26,6 +26,9 @@ OV7670_status Adafruit_OV7670::begin(void) {
 
   wire->begin();
   wire->setClock(100000); // Datasheet claims 400 KHz, but no, use 100 KHz
+
+  _width = 320;
+  _height = 240;
 
   // Alloc buffer for camera
   buffer = (uint16_t *)malloc(_width * _height * sizeof(uint16_t));

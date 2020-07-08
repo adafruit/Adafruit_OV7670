@@ -1,7 +1,7 @@
 #pragma once
 
 // IMPORTANT: #include ALL of the arch-specific .h files here.
-// They have include guards to only take effect on the active architecture.
+// They have #ifdef checks to only take effect on the active architecture.
 #include "samd51.h"
 
 #if defined(ARDUINO)
@@ -40,10 +40,10 @@ typedef enum {
   OV7670_PIN_D5,
   OV7670_PIN_D6,
   OV7670_PIN_D7,
-  OV7670_PIN_SDA,
-  OV7670_PIN_SCL,
   OV7670_PIN_RESET,
   OV7670_PIN_ENABLE,
+  OV7670_PIN_SDA,
+  OV7670_PIN_SCL,
   OV7670_NUM_PINS,
 } OV7670_PIN_INDEX;
 
@@ -53,10 +53,10 @@ typedef struct {
 } OV7670_command;
 
 typedef struct {
-  OV7670_arch_t arch;     ///< Architecture-specific config data
-  void         *platform; ///< Platform-specific data (e.g. Arduino C++ object)
-  int16_t       pin[OV7670_NUM_PINS]; ///< List of pin numbers (see below)
-} OV7670_host_t;
+  OV7670_arch *arch;     ///< Architecture-specific config data
+  void        *platform; ///< Platform-specific data (e.g. Arduino C++ object)
+  int16_t      pin[OV7670_NUM_PINS]; ///< List of pin numbers (see below)
+} OV7670_host;
 
 #define OV7670_ADDR 0x21 //< Default I2C address if unspecified
 
@@ -249,7 +249,7 @@ typedef struct {
 extern "C" {
 #endif
 
-extern OV7670_status OV7670_begin(OV7670_host_t *host);
+extern OV7670_status OV7670_begin(OV7670_host *host);
 
 #ifdef __cplusplus
 };

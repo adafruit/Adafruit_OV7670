@@ -33,10 +33,7 @@
 // SAMD51 host config sets up timer and parallel capture peripheral,
 // as these are mostly low-level register twiddles. It does NOT set up
 // DMA transfers, handled in higher-level calling code if needed.
-OV7670_status OV7670_arch_begin(OV7670_host_t *host) {
-
-  // Cast void* pointer in host struct to device-native structure
-//  OV7670_arch_t *arch = host.arch;
+OV7670_status OV7670_arch_begin(OV7670_host *host) {
 
   // LOOK UP TIMER OR TCC BASED ON ADDRESS IN HOST STRUCT ------------------
 
@@ -107,7 +104,7 @@ OV7670_status OV7670_arch_begin(OV7670_host_t *host) {
   // Scan timer[] list until a matching timer/TCC is found...
   for (timer_list_index = 0;
        (timer_list_index < sizeof timer / sizeof timer[0]) &&
-       (timer[timer_list_index].base != host->arch.timer);
+       (timer[timer_list_index].base != host->arch->timer);
        timer_list_index++) {
     if (!timer[timer_list_index].base) { // NULL separator?
       is_tcc = true; // In the TCC (not TC) part of the list now
@@ -155,7 +152,7 @@ OV7670_status OV7670_arch_begin(OV7670_host_t *host) {
       ;
 
 #if defined(ARDUINO)
-    pinPeripheral(host->pin[OV7670_PIN_XCLK], host->arch.xclk_pdec ?
+    pinPeripheral(host->pin[OV7670_PIN_XCLK], host->arch->xclk_pdec ?
       PIO_TCC_PDEC : PIO_TIMER_ALT);
 #else
     // CircuitPython, etc. pin mux here
@@ -179,17 +176,13 @@ OV7670_status OV7670_arch_begin(OV7670_host_t *host) {
 
   PCC->MR.bit.PCEN = 0; // Make sure PCC is disabled before setting MR reg
 
-  // Accumulate 4 bytes into RHR register (two 16-bit pixels)
-  PCC->MR.reg = PCC_MR_CID(0x1) |   // Clear on falling edge of DEN1 (vsync)
-                PCC_MR_ISIZE(0x0) | // Input data bus is 8 bits
-                PCC_MR_DSIZE(0x2);  // "4 data" at a time (accumulate in RHR)
-
   PCC->IDR.reg = 0b1111; // Disable all PCC interrupts
   MCLK->APBDMASK.bit.PCC_ = 1; // Enable PCC clock
 
   // Set up pin MUXes for the camera clock, sync and data pins.
   // I2C pins are already configured, XCLK was done above, and
   // the reset and enable pins are handled in the calling code.
+  // Must do this before setting MR reg.
 #if defined(ARDUINO)
   pinPeripheral(host->pin[OV7670_PIN_PCLK], PIO_PCC);
   pinPeripheral(host->pin[OV7670_PIN_VSYNC], PIO_PCC);
@@ -205,6 +198,11 @@ OV7670_status OV7670_arch_begin(OV7670_host_t *host) {
 #else
   // CircuitPython, etc. pin mux here
 #endif
+
+  // Accumulate 4 bytes into RHR register (two 16-bit pixels)
+  PCC->MR.reg = PCC_MR_CID(0x3) |   // Clear on falling DEN1 or DEN2
+                PCC_MR_ISIZE(0x0) | // Input data bus is 8 bits
+                PCC_MR_DSIZE(0x2);  // "4 data" at a time (accumulate in RHR)
 
   PCC->MR.bit.PCEN = 1; // Enable PCC
 
