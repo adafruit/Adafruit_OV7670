@@ -1,11 +1,6 @@
 /*
 TEMPORARY NOTES:
 
-Constructor might accept an array of pin numbers rather than
-just a few. On SAMD51, the PCC peripheral pins are set in stone,
-but on other devices there might be more flexibility, and that
-needs to be passed to this code.
-
 Add initial resolution to begin() function.
 
   // Add options for resolution, mirror X/Y, maybe color bars, maybe endianism,
@@ -25,7 +20,6 @@ Add initial resolution to begin() function.
   // That'd be QCIF w/8x downsample: 22 x 18 pixels = 792 bytes
 
 */
-
 
 /*!
  * @file Adafruit_OV7670.cpp
@@ -61,12 +55,13 @@ Add initial resolution to begin() function.
 #include <Arduino.h>
 #include <Wire.h>
 
-Adafruit_OV7670::Adafruit_OV7670(uint8_t addr, OV7670_pin enable,
-                                 OV7670_pin reset, OV7670_pin xclk,
+Adafruit_OV7670::Adafruit_OV7670(uint8_t addr, OV7670_pins *pins_ptr,
                                  TwoWire *twi_ptr, OV7670_arch *arch_ptr)
-    : i2c_address(addr & 0x7f), enable_pin(enable), reset_pin(reset),
-      xclk_pin(xclk), wire(twi_ptr), arch_defaults((arch_ptr == NULL)),
-      buffer(NULL) {
+    : i2c_address(addr & 0x7f), wire(twi_ptr),
+      arch_defaults((arch_ptr == NULL)), buffer(NULL) {
+  if (pins_ptr) {
+    memcpy(&pins, pins_ptr, sizeof(OV7670_pins));
+  }
   if (arch_ptr) {
     memcpy(&arch, arch_ptr, sizeof(OV7670_arch));
   }

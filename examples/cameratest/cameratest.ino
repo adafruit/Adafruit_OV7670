@@ -10,6 +10,7 @@
 // to the camera's XCLK pin, and (if the timer is a TCC rather than
 // TC), whether the pin MUX for that timer requires PDEC vs TIMER_ALT.
 OV7670_arch arch = {.timer = TCC1, .xclk_pdec = false};
+OV7670_pins pins = {.enable = PIN_PCC_D8, .reset = PIN_PCC_D9, .xclk = PIN_PCC_XCLK};
 // To use screen DMA on SAMD51, USE_SPI_DMA *must* be manually enabled
 // in Adafruit_SPITFT.h. Only a few boards with built-in screens have
 // it on by default.
@@ -27,11 +28,7 @@ Adafruit_ILI9341 tft(&TFT_SPI, TFT_DC, TFT_CS);
 SPIBrute brute(&TFT_SPI);
 #endif
 
-#define CAM_ENABLE PIN_PCC_D8
-#define CAM_RESET PIN_PCC_D9
-#define CAM_XCLK PIN_PCC_XCLK
-Adafruit_OV7670 cam(OV7670_ADDR, CAM_ENABLE, CAM_RESET, CAM_XCLK, &Wire1,
-                    &arch);
+Adafruit_OV7670 cam(OV7670_ADDR, &pins, &Wire1, &arch);
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);

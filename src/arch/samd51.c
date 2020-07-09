@@ -152,10 +152,10 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
       ;
 
 #if defined(ARDUINO)
-    pinPeripheral(host->pin[OV7670_PIN_XCLK], host->arch->xclk_pdec ?
-      PIO_TCC_PDEC : PIO_TIMER_ALT);
+    pinPeripheral(host->pins->xclk,
+                  host->arch->xclk_pdec ? PIO_TCC_PDEC : PIO_TIMER_ALT);
 #else
-    // CircuitPython, etc. pin mux here
+      // CircuitPython, etc. pin mux here
 #endif
 
   } else { // Is a TC peripheral
@@ -165,7 +165,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
     // TO DO: ADD TC PERIPHERAL (NOT TCC) CODE HERE
 
 #if defined(ARDUINO)
-    pinPeripheral(host->pin[OV7670_PIN_XCLK], PIO_TIMER);
+    pinPeripheral(host->pins->xclk, PIO_TIMER);
 #else
     // CircuitPython, etc. pin mux here
 #endif
@@ -176,7 +176,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
 
   PCC->MR.bit.PCEN = 0; // Make sure PCC is disabled before setting MR reg
 
-  PCC->IDR.reg = 0b1111; // Disable all PCC interrupts
+  PCC->IDR.reg = 0b1111;       // Disable all PCC interrupts
   MCLK->APBDMASK.bit.PCC_ = 1; // Enable PCC clock
 
   // Set up pin MUXes for the camera clock, sync and data pins.
@@ -184,17 +184,18 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   // the reset and enable pins are handled in the calling code.
   // Must do this before setting MR reg.
 #if defined(ARDUINO)
-  pinPeripheral(host->pin[OV7670_PIN_PCLK], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_VSYNC], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_HSYNC], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_D0], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_D1], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_D2], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_D3], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_D4], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_D5], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_D6], PIO_PCC);
-  pinPeripheral(host->pin[OV7670_PIN_D7], PIO_PCC);
+  // PCC pins are set in stone on SAMD51
+  pinPeripheral(PIN_PCC_CLK, PIO_PCC);
+  pinPeripheral(PIN_PCC_DEN1, PIO_PCC); // VSYNC
+  pinPeripheral(PIN_PCC_DEN2, PIO_PCC); // HSYNC
+  pinPeripheral(PIN_PCC_D0, PIO_PCC);
+  pinPeripheral(PIN_PCC_D1, PIO_PCC);
+  pinPeripheral(PIN_PCC_D2, PIO_PCC);
+  pinPeripheral(PIN_PCC_D3, PIO_PCC);
+  pinPeripheral(PIN_PCC_D4, PIO_PCC);
+  pinPeripheral(PIN_PCC_D5, PIO_PCC);
+  pinPeripheral(PIN_PCC_D6, PIO_PCC);
+  pinPeripheral(PIN_PCC_D7, PIO_PCC);
 #else
   // CircuitPython, etc. pin mux here
 #endif
@@ -211,20 +212,25 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
 
 // Non-DMA capture function using previously-initialized PCC peripheral.
 void OV7670_capture(uint32_t *dest, uint16_t width, uint16_t height,
-  volatile uint32_t *vsync_reg, uint32_t vsync_bit,
-  volatile uint32_t *hsync_reg, uint32_t hsync_bit) {
+                    volatile uint32_t *vsync_reg, uint32_t vsync_bit,
+                    volatile uint32_t *hsync_reg, uint32_t hsync_bit) {
 
-  while(*vsync_reg & vsync_bit);     // Wait for VSYNC low (frame end)
+  while (*vsync_reg & vsync_bit)
+    ; // Wait for VSYNC low (frame end)
   OV7670_disable_interrupts();
-  while(!*vsync_reg & vsync_bit);    // Wait for VSYNC high (frame start)
+  while (!*vsync_reg & vsync_bit)
+    ; // Wait for VSYNC high (frame start)
 
-  width /= 2;                        // PCC receives 2 pixels at a time
-  for(uint16_t y=0; y<height; y++) { // For each row...
-    while(*hsync_reg & hsync_bit);   //  Wait for HSYNC low (row end)
-    while(!*hsync_reg & hsync_bit);  //  Wait for HSYNC high (row start)
-    for(int x=0; x<width; x++) {     //   For each column pair...
-      while(!PCC->ISR.bit.DRDY);     //    Wait for PCC data ready
-      *dest++ = PCC->RHR.reg;        //    Store 2 pixels
+  width /= 2;                             // PCC receives 2 pixels at a time
+  for (uint16_t y = 0; y < height; y++) { // For each row...
+    while (*hsync_reg & hsync_bit)
+      ; //  Wait for HSYNC low (row end)
+    while (!*hsync_reg & hsync_bit)
+      ;                               //  Wait for HSYNC high (row start)
+    for (int x = 0; x < width; x++) { //   For each column pair...
+      while (!PCC->ISR.bit.DRDY)
+        ;                     //    Wait for PCC data ready
+      *dest++ = PCC->RHR.reg; //    Store 2 pixels
     }
   }
 
