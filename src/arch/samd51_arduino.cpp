@@ -6,10 +6,10 @@
 // VSYNC instead marks the end of the prior frame and data is ready).
 
 #if defined(__SAMD51__) && defined(ARDUINO)
-#include <Arduino.h>
-#include <Adafruit_ZeroDMA.h>
-#include "wiring_private.h" // pinPeripheral() function
 #include "Adafruit_OV7670.h"
+#include "wiring_private.h" // pinPeripheral() function
+#include <Adafruit_ZeroDMA.h>
+#include <Arduino.h>
 
 // Because interrupts exist outside the class context, but our interrupt
 // needs to access to an active ZeroDMA object, a separate ZeroDMA pointer
@@ -18,10 +18,9 @@
 // single parallel capture peripheral).
 
 static Adafruit_ZeroDMA dma;
-static DmacDescriptor *descriptor;     ///< DMA descriptor
+static DmacDescriptor *descriptor;       ///< DMA descriptor
 static volatile bool frameReady = false; // true at end-of-frame
 static volatile bool suspended = false;
-
 
 // INTERRUPT HANDLING AND RELATED CODE -------------------------------------
 
@@ -51,16 +50,6 @@ void Adafruit_OV7670::resume(void) {
   suspended = false; // Resume DMA transfers
 }
 
-
-
-
-
-
-
-
-
-
-
 OV7670_status Adafruit_OV7670::arch_begin(void) {
 
   // BASE INITIALIZATION (PLATFORM-AGNOSTIC) -------------------------------
@@ -68,30 +57,17 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
   // turn calls the device-specific C init OV7670_arch_begin() in samd51.c.
 
   OV7670_host host;
-  host.arch = &arch;        // Point to struct in Adafruit_OV7670 class
-  if(arch_defaults) {
+  host.arch = &arch; // Point to struct in Adafruit_OV7670 class
+  host.pins = &pins; // Point to struct in Adafruit_OV7670 class
+  if (arch_defaults) {
     arch.timer = TCC1;      // Use default timer
     arch.xclk_pdec = false; // and default pin MUX
   }
-  host.platform = this;     // Pointer back to Arduino_OV7670 object
-  host.pin[OV7670_PIN_XCLK] = xclk_pin;
-  host.pin[OV7670_PIN_PCLK] = PIN_PCC_CLK;
-  host.pin[OV7670_PIN_VSYNC] = PIN_PCC_DEN1;
-  host.pin[OV7670_PIN_HSYNC] = PIN_PCC_DEN2;
-  host.pin[OV7670_PIN_D0] = PIN_PCC_D0;
-  host.pin[OV7670_PIN_D1] = PIN_PCC_D1;
-  host.pin[OV7670_PIN_D2] = PIN_PCC_D2;
-  host.pin[OV7670_PIN_D3] = PIN_PCC_D3;
-  host.pin[OV7670_PIN_D4] = PIN_PCC_D4;
-  host.pin[OV7670_PIN_D5] = PIN_PCC_D5;
-  host.pin[OV7670_PIN_D6] = PIN_PCC_D6;
-  host.pin[OV7670_PIN_D7] = PIN_PCC_D7;
-  host.pin[OV7670_PIN_RESET] = reset_pin;
-  host.pin[OV7670_PIN_ENABLE] = enable_pin;
+  host.platform = this; // Pointer back to Arduino_OV7670 object
 
   OV7670_status status;
   status = OV7670_begin(&host);
-  if(status != OV7670_STATUS_OK) {
+  if (status != OV7670_STATUS_OK) {
     return status;
   }
 
@@ -116,7 +92,8 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
   // A pin FALLING interrupt is used to detect the start of a new frame.
   // Seems like the PCC RXBUFF and/or ENDRX interrupts could take care
   // of this, but in practice that didn't seem to work.
-  attachInterrupt(host.pin[OV7670_PIN_VSYNC], startFrame, FALLING);
+  // DEN1 is the PCC VSYNC pin.
+  attachInterrupt(PIN_PCC_DEN1, startFrame, FALLING);
 
   return status;
 }
@@ -128,49 +105,6 @@ OV7670_status Adafruit_OV7670::arch_begin(void) {
 // any worse than setting up the arch struct though?
 
 /*
-ifdef device
-  arch = { ... }
-endif
-constructor( ..., arch)
-
-vs
-if device
-  constructor ( ..., ... )
-endif
-
-I suppose it's fewer lines that way
-
-There would then be
-Adafruit_OV7670_SAMD51
-Adafruit_OV7670_iMX
-Adafruit_OV7670_ESP32
-and so forth
-but never simply
-Adafruit_OV7670
-
-OH WAIT.
-I think the reason this is NOT done
-is that sketches would need to include a specific .h for each arch,
-i.e. #include <Adafruit_OV7670_SAMD51>
-and THEN the special declaration also
-and I don't really like that.
-
-I suppose it's possible for a main .h to include any arch-specific .h,
-and then always name the subclass the same thing, but with different
-constructor args.
-So there'd be like Adafruit_OV7670_core that the user never sees,
-and Adafruit_OV7670 (a subclass of core) that they do see, and which
-has different arguments depending on arch.
-Adafruit_OV7670.h would include the core class and then
-all the subclass .h files.
-Seems a mess. But so is the arch struct.
-Also, having the virtual func would make it easier to enforce that
-architectures implement specific functions by name.
-
-Well...the arch struct goes down to the C code anyway, and is going
-to exist regardles. So maybe just stick with it? It inflicts a lot
-on the user, but that info needs to go somewhere anyway, whether in
-the constructor or in a special struct.
 
 Okay decided: will stick with arch struct rather than subclasses.
 The middle-layer C code needs that struct to pass down to the arch-specific
@@ -179,9 +113,6 @@ need ifdefs anyway. Subclasses would mean a third place where per-device
 ifdefs would need to happen.
 
 Only arguments in favor of the subclass thing are
-- can use defaults for those weird arguments in constructor, and if they're
-good defaults, the user will never need to see them and the constructor
-looks the same on most devices.
 - Can put the DMA and descriptor instances in the subclass, allowing
 multiple OV7670 instances. But since there's only one PCC anyway, there
 can be only one instance.
@@ -189,6 +120,11 @@ Unless...having both PCC and bitbang instances present is an option.
 So basically, multiple cameras. I think that's all it comes down to.
 But we could do that with the arch structure anyway I think.
 
+Update: addition of the OV7670_pins struct means that all constructors
+could accept identical args now. Maybe that's more in the subclass' favor,
+
+Just keeping this function though, avoids having to make a separate .h
+file for each device. The .cpp is enough. It just has the missing funcs.
 
 */
 
@@ -202,7 +138,7 @@ void Adafruit_OV7670::capture(void) {
   hsync_bit = 1ul << g_APinDescription[PIN_PCC_DEN2].ulPin;
 
   OV7670_capture((uint32_t *)buffer, _width, _height, vsync_reg, vsync_bit,
-    hsync_reg, hsync_bit);
+                 hsync_reg, hsync_bit);
 }
 
 #endif // __SAMD51__ && ARDUINO

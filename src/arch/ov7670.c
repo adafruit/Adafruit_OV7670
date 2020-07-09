@@ -158,7 +158,7 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_BRIGHT, 0x00},
     {OV7670_REG_CONTRAS, 0x40},
     {OV7670_REG_CONTRAS_CTR, 0x80}, // 0x40?
-    {OV7670_REG_LAST + 1, 0x00}, // End-of-data marker
+    {OV7670_REG_LAST + 1, 0x00},    // End-of-data marker
 };
 
 OV7670_status OV7670_begin(OV7670_host *host) {
@@ -170,7 +170,7 @@ OV7670_status OV7670_begin(OV7670_host *host) {
   // function will fiddle registers to start a timer for XCLK output and
   // enable the parallel capture peripheral.
   status = OV7670_arch_begin(host);
-  if(status != OV7670_STATUS_OK) {
+  if (status != OV7670_STATUS_OK) {
     return status;
   }
 
@@ -180,17 +180,17 @@ OV7670_status OV7670_begin(OV7670_host *host) {
 
   // ENABLE AND/OR RESET CAMERA --------------------------------------------
 
-  if (host->pin[OV7670_PIN_ENABLE] >= 0) { // Enable pin defined?
-    OV7670_pin_output(host->pin[OV7670_PIN_ENABLE])
-    OV7670_pin_write(host->pin[OV7670_PIN_ENABLE], 0); // PWDN low (enable)
+  if (host->pins->enable >= 0) { // Enable pin defined?
+    OV7670_pin_output(host->pins->enable)
+        OV7670_pin_write(host->pins->enable, 0); // PWDN low (enable)
     OV7670_delay_ms(300);
   }
 
-  if (host->pin[OV7670_PIN_RESET] >= 0) { // Hard reset pin defined?
-    OV7670_pin_output(host->pin[OV7670_PIN_RESET]);
-    OV7670_pin_write(host->pin[OV7670_PIN_RESET], 0);
+  if (host->pins->reset >= 0) { // Hard reset pin defined?
+    OV7670_pin_output(host->pins->reset);
+    OV7670_pin_write(host->pins->reset, 0);
     OV7670_delay_ms(1);
-    OV7670_pin_write(host->pin[OV7670_PIN_RESET], 1);
+    OV7670_pin_write(host->pins->reset, 1);
   } else { // Soft reset, doesn't seem reliable, might just need more delay?
     OV7670_write_register(host->platform, OV7670_REG_COM7, OV7670_COM7_RESET);
   }
@@ -201,4 +201,3 @@ OV7670_status OV7670_begin(OV7670_host *host) {
 
   OV7670_delay_ms(300); // tS:REG = 300 ms (settling time = 10 frames)
 }
-

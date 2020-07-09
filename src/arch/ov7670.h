@@ -27,26 +27,29 @@ typedef enum {
   OV7670_STATUS_ERR_PERIPHERAL, ///< Peripheral (e.g. timer) not found
 } OV7670_status;
 
-/** Indices into pin list used by OV7670_begin() */
-typedef enum {
-  OV7670_PIN_XCLK = 0,
-  OV7670_PIN_PCLK,
-  OV7670_PIN_VSYNC,
-  OV7670_PIN_HSYNC,
-  OV7670_PIN_D0,
-  OV7670_PIN_D1,
-  OV7670_PIN_D2,
-  OV7670_PIN_D3,
-  OV7670_PIN_D4,
-  OV7670_PIN_D5,
-  OV7670_PIN_D6,
-  OV7670_PIN_D7,
-  OV7670_PIN_RESET,
-  OV7670_PIN_ENABLE,
-  OV7670_PIN_SDA,
-  OV7670_PIN_SCL,
-  OV7670_NUM_PINS,
-} OV7670_PIN_INDEX;
+/**
+Defines physical connection to OV7670 camera, passed to constructor.
+On certain architectures, some of these pins are fixed in hardware and
+cannot be changed, e.g. SAMD51 has its Parallel Capture Controller in
+one specific place. In such cases, you can usually avoid declaring those
+values when setting up the structure. However, elements DO need to be
+declared in-order matching the structure and without gaps, and struct
+elements have been sorted with this in mind. You can cut off a declaration
+early, but if middle elements aren't needed must still be assigned some
+unused value (e.g. 0). On Arduino platform, SDA/SCL are dictated by the
+Wire instance and don't need to be set here. See example code.
+*/
+typedef struct {
+  OV7670_pin enable;  ///< Also called PWDN, or set to -1 and tie to GND
+  OV7670_pin reset;   ///< Cam reset, or set to -1 and tie to 3.3V
+  OV7670_pin xclk;    ///< MCU clock out / cam clock in
+  OV7670_pin pclk;    ///< Cam clock out / MCU clock in
+  OV7670_pin vsync;   ///< Also called DEN1
+  OV7670_pin hsync;   ///< Also called DEN2
+  OV7670_pin data[8]; ///< Camera parallel data out
+  OV7670_pin sda;     ///< I2C data
+  OV7670_pin scl;     ///< I2C clock
+} OV7670_pins;
 
 /** Address/value combo for OV7670 camera commands. */
 typedef struct {
@@ -56,9 +59,9 @@ typedef struct {
 
 /** Architecture+platform combination structure. */
 typedef struct {
-  OV7670_arch *arch;     ///< Architecture-specific config data
-  void        *platform; ///< Platform-specific data (e.g. Arduino C++ object)
-  int16_t      pin[OV7670_NUM_PINS]; ///< List of pin numbers (see below)
+  OV7670_arch *arch; ///< Architecture-specific config data
+  OV7670_pins *pins; ///< Physical connection to camera
+  void *platform;    ///< Platform-specific data (e.g. Arduino C++ object)
 } OV7670_host;
 
 #define OV7670_ADDR 0x21 //< Default I2C address if unspecified

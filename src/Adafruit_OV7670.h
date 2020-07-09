@@ -43,12 +43,8 @@ public:
   /*!
     @brief  Constructor for Adafruit_OV7670 class.
     @param  addr      I2C address of camera.
-    @param  enable    Arduino pin number connected to OV7670 enable or PWDN
-                      pin (low = enable, high = power-down), or -1 if unused
-                      (pin can be tied to ground).
-    @param  reset     Arduino pin number connected to OV7670 reset (active
-                      low), or -1 if unused (pin can be tied to 3.3V).
-    @param  xclk      Arduino pin number connected to OV7670 XCLK (clock in).
+    @param  pins_ptr  Pointer to OV7670_pins structure, describing physical
+                      connection to the camera.
     @param  twi_ptr   Pointer to TwoWire instance (e.g. &Wire or &Wire1),
                       used for I2C communication with camera.
     @param  arch_ptr  Pointer to structure containing architecture-specific
@@ -58,8 +54,7 @@ public:
                       always of type OV7670_arch, but the specific elements
                       within will vary with each supported architecture.
   */
-  Adafruit_OV7670(uint8_t addr = OV7670_ADDR, OV7670_pin enable = -1,
-                  OV7670_pin reset = -1, OV7670_pin xclk = -1,
+  Adafruit_OV7670(uint8_t addr = OV7670_ADDR, OV7670_pins *pins_ptr = NULL,
                   TwoWire *twi_ptr = &Wire, OV7670_arch *arch_ptr = NULL);
   ~Adafruit_OV7670(); // Destructor
 
@@ -142,13 +137,11 @@ private:
   OV7670_status arch_begin(void); ///< Architecture-specific periph setup
   TwoWire *wire;                  ///< I2C interface
   uint16_t *buffer;               ///< Camera buffer allocated by lib
+  OV7670_pins pins;               ///< Camera physical connections
   OV7670_arch arch;               ///< Architecture-specific peripheral info
   uint16_t _width;                ///< Current settings width in pixels
   uint16_t _height;               ///< Current settings height in pixels
   const uint8_t i2c_address;      ///< I2C address
-  const OV7670_pin enable_pin;    ///< Pin # for camera enable (active low)
-  const OV7670_pin reset_pin;     ///< Pin # for camera reset
-  const OV7670_pin xclk_pin;      ///< Pin # for camera XCLK
   const bool arch_defaults;       ///< If set, ignore arch struct, use defaults
 };
 
@@ -196,4 +189,3 @@ int OV7670_read_register(void *obj, uint8_t reg);
 void OV7670_write_register(void *obj, uint8_t reg, uint8_t value);
 
 }; // end extern "C"
-
