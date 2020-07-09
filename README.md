@@ -1,4 +1,4 @@
-# Adafruit_OV7670
+# Adafruit OV7670 Library [![Build Status](https://github.com/adafruit/Adafruit_OV7670/workflows/Arduino%20Library%20CI/badge.svg)](https://github.com/adafruit/Adafruit_OV7670/actions)[![Documentation](https://github.com/adafruit/ci-arduino/blob/master/assets/doxygen_badge.svg)](http://adafruit.github.io/Adafruit_OV7670/html/index.html)
 
 Arduino library for OV7670 cameras, built over a C foundation common to
 both Arduino and (later) CircuitPython.
