@@ -82,8 +82,13 @@ OV7670_status Adafruit_OV7670::begin(uint16_t width, uint16_t height) {
   wire->begin();
   wire->setClock(100000); // Datasheet claims 400 KHz, but no, use 100 KHz
 
+#if 1
   _width = 320;
   _height = 240;
+#else
+  _width = 160;
+  _height = 120;
+#endif
 
   // Alloc buffer for camera
   buffer = (uint16_t *)malloc(_width * _height * sizeof(uint16_t));

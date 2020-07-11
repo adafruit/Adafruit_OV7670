@@ -201,7 +201,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
 #endif
 
   // Accumulate 4 bytes into RHR register (two 16-bit pixels)
-  PCC->MR.reg = PCC_MR_CID(0x3) |   // Clear on falling DEN1 or DEN2
+  PCC->MR.reg = PCC_MR_CID(0x1) |   // Clear on falling DEN1 (VSYNC)
                 PCC_MR_ISIZE(0x0) | // Input data bus is 8 bits
                 PCC_MR_DSIZE(0x2);  // "4 data" at a time (accumulate in RHR)
 

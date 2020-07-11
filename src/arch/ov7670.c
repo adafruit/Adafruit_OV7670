@@ -55,6 +55,8 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_COM14, 0x00},
     {OV7670_REG_SCALING_XSC, 0x00},
     {OV7670_REG_SCALING_YSC, 0x01},
+//{OV7670_REG_SCALING_XSC, 0x40}, // Anything above 0x40 = 0.5
+//{OV7670_REG_SCALING_YSC, 0x40}, // Anything above 0x40 = 0.5
     {OV7670_REG_SCALINGDCW, 0x11}, // Default scaling = 1:2
     {OV7670_REG_SCALINGPCLK, 0x09},
     {OV7670_REG_SPD, 0x02},
@@ -225,34 +227,100 @@ OV7670_status OV7670_begin(OV7670_host *host) {
 //   there is a gap in available sizes here, this is normal.
 // - All other sizes below the CIF size and above the minimum will provide
 //   the requested size.
+// - Sizes BELOW MINIMUM will return the MINIMUM. Otherwise, result will
+//   always be EQUAL OR SMALLER than the requested size, never larger.
 // X and Y axes are independent; pixel aspect ratio may be non-square.
 // Width can be 40-352 or 640, height can be 30-288 or 480.
 
-static void size_axis(uint16_t n, uint16_t cif, uint16_t max) {
-  // Downsample value is a shift from 0 to 3. Actual factor is 2^(ds+1).
-  uint8_t ds = 0;                 // 1:1 initial downsample guess
-  float zoom;                     // Zoom value, 0.5 to 1.0
-  uint16_t min = max / 16;        // Limit is 1:8 downsample * 0.5 zoom
-  if(n <= min) {                  // If size is at or below minimum
-    n = min;                      //   Use min size
-    ds = 3;                       //   1:8 downsample
-    zoom = 0.5;                   //   0.5 zoom
-  } else if(n >= max) {           // If size is at or above maximum
-    n = max;                      //   Use max size
-    zoom = 1.0;                   //   Full-size zoom (ds 1:1 above)
-  } else if(n >= cif) {           // If size is at or above CIF limit
-    n = cif;                      //   Use CIF size
-    zoom = (float)n / (float)max; //   Zoom = 0.5 to <1.0
-  } else {                        // All other sizes...
-    while((ds < 3) && (n <= (max / (1 << (ds + 1))))) ds++; // Downsample
-    zoom = (float)n / (float)(max / (1 << ds));
-  }
+// SUPPORTED SCALING RATIOS ARE 0x20 (1.0) to 0x40 (0.5).
+// That's 33 distinct values, so NOT ALL PIXEL SIZES CAN EXIST.
+// Need to factor that in.
 
-  // return size, ds and zoom for subsequent buffer realloc and camera config
+static void size_axis(uint16_t *n, uint16_t cif, uint16_t max,
+                      uint8_t *ds, uint8_t *ratio) {
+  // Downsample value is a shift from 0 to 3. Actual factor is 2^(ds+1).
+  *ds = 0;                         // 1:1 initial downsample guess
+  float zoom;
+  uint16_t min = max / 16;         // Limit is 1:8 downsample * 0.5 zoom
+  if(*n <= min) {                  // If size is at or below minimum
+    *n = min;                      //   Use min size
+    *ds = 3;                       //   1:8 downsample
+    zoom = 0.5;                    //   0.5 zoom
+  } else if(*n >= max) {           // If size is at or above maximum
+    *n = max;                      //   Use max size
+    zoom = 1.0;                    //   Full-size zoom (ds 1:1 above)
+  } else if(*n >= cif) {           // If size is at or above CIF limit
+    *n = cif;                      //   Use CIF size
+    zoom = (float)*n / (float)max; //   Zoom = 0.5 to <1.0
+  } else {                         // All other sizes...
+    while((*ds < 3) && (*n <= (max / (1 << (*ds + 1))))) ds++; // Downsample X2
+    zoom = (float)*n / (float)(max / (1 << *ds));
+  }
+  // TO DO here: handle the limited zoom granularity
+  // Not every size is supported, need to round slightly.
+  // Change 'n' that's returned to fit these values
+// iz = int(zoom * 33.0);
+  // Ratio will be 0x20 (1.0) to 0x40 (0.5)
+  *ratio = 0x20;
+  // This will change the value of 'n'
 }
 
-bool OV7670_setResolution(uint16_t width, uint16_t height) {
-  size_axis(width, OV7670_CIF_WIDTH, OV7670_VGA_WIDTH);
-  size_axis(height, OV7670_CIF_HEIGHT, OV7670_VGA_HEIGHT);
+// Pass in desired width & height (as pointers to uint16_t),
+// values will be modified with actual resolution set.
+bool OV7670_setResolution(uint16_t *width, uint16_t *height) {
+
+  uint8_t ds_x, ds_y;       // Downsample factors for X & Y axes
+  uint8_t ratio_x, ratio_y; // Zoom ratios for X & Y
+
+  // Handle a few automatic sizing options, if width and/or height are 0:
+  if(*width == 0) {                    // If width and
+    if(*height == 0) {                 // height are both 0...
+      *width = OV7670_VGA_WIDTH / 4;   //   Use default size
+      *height = OV7670_VGA_HEIGHT / 4; //   (1:4 downsampling)
+    } else {                           // If only width is 0...
+      *width = (*height * 8 + 3) / 6;  //   Auto width based on height @ 4:3
+    } // The 8,3,6 above are for fixed-point +0.5 rounding
+  } else if(*height == 0) {            // If only height is 0...
+    *height = (*width * 3 + 2) / 4;    //   Auto height based on width @ 4:3
+  } // Ditto w 3,2,4 for fixed-point +0.5 rounding
+
+  // Apply upper & lower pixel size constraints to X & Y axes.
+  size_axis(*width, OV7670_CIF_WIDTH, OV7670_VGA_WIDTH, &ds_x, &ratio_x);
+  size_axis(*height, OV7670_CIF_HEIGHT, OV7670_VGA_HEIGHT, &ds_y, &ratio_y);
+
+#if defined(__SAMD51__)
+  // Because the SAMD51 PCC config accumulates 4 bytes in the RHR register
+  // (two 16-bit pixels), width * height must be a multiple of 2...
+  if((*width * *height) & 1) { // Odd pixel count
+    // One axis or other will be reduced by one pixel.
+    // If width or height is already at its minimum, choose the opposite
+    // axis. We can safely do this because we know the X and Y minimums
+    // are both even numbers...if the opposite axis is reduced to an odd
+    // value, the product of the two is still even. If both axes are at
+    // their minimums, we won't be here, it passes the if() test above.
+    if(*width == OV7670_MIN_WIDTH) {          // Width already at minimum,
+      *height &= ~1;                          // reduction must be to height
+    } else if(*height == OV7670_MIN_HEIGHT) { // Height already at minimum,
+      *width &= ~1;                           // reduction must be to width
+    } else {
+      // Neither axis at minimum size. Determine which axis yields a
+      // result closer to 4:3. Always rounds one axis down, never up.
+      float test_w = fabs(((float)*height / (float)(*width & ~1)) - 0.75);
+      float test_h = fabs(((float)(*height & ~1) / (float)*width) - 0.75);
+      if(test_w <= test_h) {
+        *width &= ~1;
+      } else {
+        *height &= ~1;
+      }
+    }
+    // Make another pass through the axis-sizing functions. Dimensions
+    // won't change now, but we need revised downsample & zoom values.
+    size_axis(*width, OV7670_CIF_WIDTH, OV7670_VGA_WIDTH, &ds_x, &ratio_x);
+    size_axis(*height, OV7670_CIF_HEIGHT, OV7670_VGA_HEIGHT, &ds_y, &ratio_y);
+  }
+#endif
+
   // DO MAGIC HERE, issue stuff to camera
+  // Will also require reallocing buffer
+  // Maybe that's done in the calling code
 }
