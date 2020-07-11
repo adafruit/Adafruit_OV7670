@@ -19,22 +19,6 @@
 #include <Adafruit_ZeroDMA.h>
 #include <Wire.h>
 
-/** OV7670 camera resolutions. */
-enum OV7670_size {
-  OV7670_SIZE_VGA = 0, ///< 640 x 480
-  OV7670_SIZE_CIF,     ///< 352 x 288
-  OV7670_SIZE_QVGA,    ///< 320 x 240
-  OV7670_SIZE_QCIF,    ///< 176 x 144
-};
-
-/** OV7670 camera downsampling options. */
-enum OV7670_downsample {
-  OV7670_DOWNSAMPLE_1 = 0, ///< 1:1 (no downsampling, full resolution)
-  OV7670_DOWNSAMPLE_2,     ///< 1:2 downsampling
-  OV7670_DOWNSAMPLE_4,     ///< 1:4 downsampling
-  OV7670_DOWNSAMPLE_8,     ///< 1:8 downsampling
-};
-
 /*!
     @brief  Class encapsulating OV7670 camera functionality.
 */
@@ -61,9 +45,11 @@ public:
   /*!
     @brief   Allocate and initialize resources behind an Adafruit_OV7670
              instance.
+    @param   width   Camera capture width in pixels, 0=use default size.
+    @param   height  Camera capture height in pixels, 0=use default size.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
-  OV7670_status begin(void);
+  OV7670_status begin(uint16_t width=0, uint16_t height=0);
 
   /*!
     @brief   Reads value of one register from the OV7670 camera over I2C.
@@ -111,22 +97,12 @@ public:
 
   /*!
     @brief   This will change.
-    @param   size  One of the size settings from ov7670.h.
-    @param   x     Horizontal scaling.
-    @param   y     Vertical scaling.
+    @param   width   Capture width in pixels.
+    @param   height  Capture height in pixels.
     @return  true on success (image buffer reallocated, camera configured),
              false on error (usu. malloc).
   */
-  bool setResolution(OV7670_size size, OV7670_downsample x,
-                     OV7670_downsample y);
-  /*!
-    @brief   Ditto.
-    @param   size  One of the size settings from ov7670.h.
-    @param   d     Scaling factor (both horizontal and vertical).
-    @return  true on success (image buffer reallocated, camera configured),
-             false on error (usu. malloc).
-  */
-  bool setResolution(OV7670_size size, OV7670_downsample d);
+  bool setResolution(uint16_t width, uint16_t height);
 
   /*!
     @brief  Capture still to buffer.

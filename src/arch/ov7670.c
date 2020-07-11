@@ -201,3 +201,58 @@ OV7670_status OV7670_begin(OV7670_host *host) {
 
   OV7670_delay_ms(300); // tS:REG = 300 ms (settling time = 10 frames)
 }
+
+#define OV7670_VGA_WIDTH  640
+#define OV7670_VGA_HEIGHT 480
+#define OV7670_CIF_WIDTH  352
+#define OV7670_CIF_HEIGHT 288
+#define OV7670_MIN_WIDTH  (OV7670_VGA_WIDTH / 16)
+#define OV7670_MIN_HEIGHT (OV7670_VGA_HEIGHT / 16)
+
+// Given a desired image size (along either axis), constrain and return
+// a value that the camera is actually capable of supporting.
+// OV7670 image scaling uses a combination of integer power-of-two
+// downsampling (1:1, 1:2, 1:4 or 1:8) and a fractional "digital zoom"
+// from 1.0 (full size) to 0.5 (half size). Native full resolution from
+// the sensor is 640x480 pixels (1:1 * 1.0 zoom), minimum resolution is
+// 1/16 this (1:8 * 0.5 zoom) or 40x30 pixels. Due to internal buffer
+// size limitations, the maximum zoomed image size is CIF (352x288).
+// THEREFORE:
+// - Any requested size EQUAL or BELOW THE MINIMUM will return the MINIMUM.
+// - Any requested size EQUAL or ABOVE THE MAXIMUM will return the MAXIMUM.
+// - Any requested size BELOW THE MAXIMUM but EQUAL or ABOVE THE CIF SIZE
+//   LIMITS will return the CIF SIZE (e.g. 400 pixel width becomes 352) --
+//   there is a gap in available sizes here, this is normal.
+// - All other sizes below the CIF size and above the minimum will provide
+//   the requested size.
+// X and Y axes are independent; pixel aspect ratio may be non-square.
+// Width can be 40-352 or 640, height can be 30-288 or 480.
+
+static void size_axis(uint16_t n, uint16_t cif, uint16_t max) {
+  // Downsample value is a shift from 0 to 3. Actual factor is 2^(ds+1).
+  uint8_t ds = 0;                 // 1:1 initial downsample guess
+  float zoom;                     // Zoom value, 0.5 to 1.0
+  uint16_t min = max / 16;        // Limit is 1:8 downsample * 0.5 zoom
+  if(n <= min) {                  // If size is at or below minimum
+    n = min;                      //   Use min size
+    ds = 3;                       //   1:8 downsample
+    zoom = 0.5;                   //   0.5 zoom
+  } else if(n >= max) {           // If size is at or above maximum
+    n = max;                      //   Use max size
+    zoom = 1.0;                   //   Full-size zoom (ds 1:1 above)
+  } else if(n >= cif) {           // If size is at or above CIF limit
+    n = cif;                      //   Use CIF size
+    zoom = (float)n / (float)max; //   Zoom = 0.5 to <1.0
+  } else {                        // All other sizes...
+    while((ds < 3) && (n <= (max / (1 << (ds + 1))))) ds++; // Downsample
+    zoom = (float)n / (float)(max / (1 << ds));
+  }
+
+  // return size, ds and zoom for subsequent buffer realloc and camera config
+}
+
+bool OV7670_setResolution(uint16_t width, uint16_t height) {
+  size_axis(width, OV7670_CIF_WIDTH, OV7670_VGA_WIDTH);
+  size_axis(height, OV7670_CIF_HEIGHT, OV7670_VGA_HEIGHT);
+  // DO MAGIC HERE, issue stuff to camera
+}

@@ -77,7 +77,7 @@ Adafruit_OV7670::~Adafruit_OV7670() {
 
 // CAMERA INIT AND CONFIG FUNCTIONS ----------------------------------------
 
-OV7670_status Adafruit_OV7670::begin(void) {
+OV7670_status Adafruit_OV7670::begin(uint16_t width, uint16_t height) {
 
   wire->begin();
   wire->setClock(100000); // Datasheet claims 400 KHz, but no, use 100 KHz
@@ -108,13 +108,10 @@ void Adafruit_OV7670::writeRegister(uint8_t reg, uint8_t value) {
   wire->endTransmission();
 }
 
-bool Adafruit_OV7670::setResolution(OV7670_size size, OV7670_downsample x,
-                                    OV7670_downsample y) {
+bool Adafruit_OV7670::setResolution(uint16_t width, uint16_t height) {
+  // Clip width & height here. Upper and lower limits!
+  // (do that in C code actually, return results here)
   return true; // TO DO: make this realloc buf & return status
-}
-
-bool Adafruit_OV7670::setResolution(OV7670_size size, OV7670_downsample d) {
-  return setResolution(size, d, d); // Call X/Y sizer w/same value for both
 }
 
 // C-ACCESSIBLE FUNCTIONS --------------------------------------------------
