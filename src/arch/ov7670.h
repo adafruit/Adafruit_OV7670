@@ -29,11 +29,11 @@ typedef enum {
 
 /** Supported sizes (VGA division factor) for OV7670_set_size() */
 typedef enum {
-  OV7670_SIZE_DIV1 = 0,  ///< 640 x 480
-  OV7670_SIZE_DIV2 = 0,  ///< 320 x 240
-  OV7670_SIZE_DIV4 = 0,  ///< 160 x 120
-  OV7670_SIZE_DIV8 = 0,  ///< 80 x 60
-  OV7670_SIZE_DIV16 = 0, ///< 40 x 30
+  OV7670_SIZE_DIV1 = 0, ///< 640 x 480
+  OV7670_SIZE_DIV2,     ///< 320 x 240
+  OV7670_SIZE_DIV4,     ///< 160 x 120
+  OV7670_SIZE_DIV8,     ///< 80 x 60
+  OV7670_SIZE_DIV16,    ///< 40 x 30
 } OV7670_size;
 
 /**

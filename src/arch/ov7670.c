@@ -60,52 +60,31 @@ static const OV7670_command OV7670_init[] = {
 
 
 
-//    {OV7670_REG_TSLB, OV7670_TSLB_YLAST | 1}, // Auto output window
-    {OV7670_REG_TSLB, OV7670_TSLB_YLAST}, // No auto window
+    {OV7670_REG_TSLB, OV7670_TSLB_YLAST | 1}, // Auto output window
+//    {OV7670_REG_TSLB, OV7670_TSLB_YLAST}, // No auto window
     {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // Neg VSYNC (req by SAMD51 PCC)
+//    {OV7670_REG_COM10, OV7670_COM10_PCLK_HB | OV7670_COM10_VS_NEG}, // Neg VSYNC (req by SAMD51 PCC)
 
+#if 1
+// My old numbers (from prior lib):
     {OV7670_REG_HSTART, 0x16},
     {OV7670_REG_HSTOP, 0x04},
     {OV7670_REG_HREF, 0x80},
     {OV7670_REG_VSTART, 0x03},
     {OV7670_REG_VSTOP, 0x7B},
     {OV7670_REG_VREF, 0x08},
-
-
-// Ah, need to set pixel clock delay:
-// 640 / pixel clock divider - 240
-// 640 / 2 - 240 = 80
-//    {OV7670_REG_SCALING_PCLK_DELAY, 640 / 2 - 240},
-
-// Scaling pixel clock delay
-// 640 / 2 -> 320 -> doesn't fit
-// It's 7 bits SCALING_PCLK_DELAY[6:0]
-// Maybe it should be 1/2?
-//{ OV7670_REG_SCALING_PCLK_DELAY, 0b01000000 }, // Scaling pixel clock delay
-// Try setting up that dummy pixel thing
-// How many dummy pixels? Well, PCLK is /2, so width is like 320
-// Need to 'eat' 80 pixels or 80/640
-// I think the value we need is 98 = 0000 0110 0010
-// This is split across two registers
-// PCLK is divided by 2 though, so does that mean 80/320?
-// row interval = 2 * (784 + dummy pixels) * 24 MHz
-//{OV7670_REG_EXHCH, (0 >> 4) & 0xF0}, // Dummy pixels high
-//{OV7670_REG_EXHCL, (0 & 0xFF)}, // Dummy pixels low
-//{OV7670_REG_COM11, 0x80}, // Insert dummy rows automatically (wrong)
-// Using a PCLK/4 and 320 dummy pixels shows right image
-//    {OV7670_REG_HSTART, 0},
-//    {OV7670_REG_HSTOP, 639 >> 3}, // High 8 bits
-//    {OV7670_REG_HREF, 0b10000000 | ((639 & 0b111) << 3) }, // Low 3 bits
-/* orig href stuff:
-{OV7670_REG_HSTART, 0x16}, 22  this doesn't even make sense
-{OV7670_REG_HSTOP, 0x04},  4
-{OV7670_REG_HREF, 0x80},   10000000
-*/
-//    {OV7670_REG_VSTART, 0},
-//    {OV7670_REG_VSTOP, 479 >> 3}, // High 8 bits
-//    {OV7670_REG_VREF, (479 & 0b111) << 3},
+#else
+// from Arduino lib (from Linux):
+    {OV7670_REG_HSTART, 0x13},
+    {OV7670_REG_HSTOP, 0x01},
+    {OV7670_REG_HREF, 0xB6},
+    {OV7670_REG_VSTART, 0x02},
+    {OV7670_REG_VSTOP, 0x7A},
+    {OV7670_REG_VREF, 0x0A},
+#endif
 
     {OV7670_REG_SCALING_PCLK_DELAY, 0x02},
+
     {OV7670_REG_SLOP, 0x20},
     {OV7670_REG_GAM_BASE, 0x1C},
     {OV7670_REG_GAM_BASE + 1, 0x28},
@@ -242,10 +221,12 @@ OV7670_status OV7670_begin(OV7670_host *host) {
   }
   OV7670_delay_ms(1); // Datasheet: tS:RESET = 1 ms
 
+  // Set the basics: timing and frame size
   (void)OV7670_set_fps(host->platform, 30.0);
-  OV7670_set_size(host->platform, OV7670_SIZE_DIV2);
+//  OV7670_set_size(host->platform, OV7670_SIZE_DIV2);
+  OV7670_set_size(host->platform, OV7670_SIZE_DIV4);
 
-  // Send initial configuration to camera
+  // Send additional configuration to camera
   OV7670_write_list(host->platform, OV7670_init);
 
   OV7670_delay_ms(300); // tS:REG = 300 ms (settling time = 10 frames)
@@ -334,60 +315,201 @@ void OV7670_set_size(void *platform, OV7670_size size) {
 // 1/2 to 1/4  (320 to 161)  2 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 1
 // 1/4 to 1/8  (160 to 81)   4 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 2
 // 1/8 to 1/16 (80 to 40)    8 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 3
-  static const OV7670_command *res_settings[] = {
-    { // VGA 640x480
+
+  static const OV7670_command
+    set_div1[] = { // VGA 640x480
       {OV7670_REG_COM3, 0x00},                // No downsampling or zoom
       {OV7670_REG_COM14, 0x00},               // Normal PCLK, no divider
-      {OV7670_REG_SCALING_DCWCTR, 0x00},          // No vert/horiz downsampling
-      {OV7670_REG_SCALING_PCLK_DIV, 0x08},         // Bypass DSP clock divider
-    },
-    { // QVGA 320x240
-//for manual scaler settings, set registers
-//COM14[3] (0x3E) and SCALING_PCLK_ DELAY[7] 
-//0000 0100
+      {OV7670_REG_SCALING_DCWCTR, 0x00},      // No vert/horiz downsampling
+      {OV7670_REG_SCALING_PCLK_DIV, 0x08},    // Bypass DSP clock divider
+      {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
+      {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
+      {0xFF, 0xFF} },
+    set_div2[] = { // QVGA 320x240
+// Why is vertical downsample not happening?
       {OV7670_REG_COM7, OV7670_COM7_RGB},     // Manual output format, RGB
       {OV7670_REG_COM3, OV7670_COM3_SCALEEN}, // Enable downsampling
-      {OV7670_REG_COM14, 0x19},               // Enable PCLK divider 1:2
-//pixel clock delay
-      {0xA2, 02}, // pixel clock delay
-      {OV7670_REG_SCALING_DCWCTR, 0x11},          // Vert+horiz 1:2 downsample
-      {OV7670_REG_SCALING_PCLK_DIV, 0xF1},         // Bypass DSP clock divider
-    },
-    { // QQVGA 160x120
+      {OV7670_REG_COM14, OV7670_COM14_DCWEN | 0x01}, // Enable PCLK divider 1:2
+      {OV7670_REG_SCALING_DCWCTR, 0x11},      // Vert+horiz 1:2 downsample
+      {OV7670_REG_SCALING_PCLK_DIV, 0x08},    // Bypass DSP clock divider
+      {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
+      {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
+      {0xFF, 0xFF} },
+    set_div4[] = { // QQVGA 160x120
+#define DUMMY_PIXEL (640-160)
       {OV7670_REG_COM7, OV7670_COM7_RGB},     // Manual output format, RGB
       {OV7670_REG_COM3, OV7670_COM3_SCALEEN}, // Enable downsampling
       {OV7670_REG_COM14, 0x1A},               // Enable PCLK divider 1:4
-      {OV7670_REG_SCALING_DCWCTR, 0x22},          // Vert/horiz 1:4 downsample
-      {OV7670_REG_SCALING_PCLK_DIV, 0x08},         // Bypass DSP clock divider
-    },
-    { // 80x60
+      {OV7670_REG_SCALING_DCWCTR, 0x22},      // Vert/horiz 1:4 downsample
+      {OV7670_REG_SCALING_PCLK_DIV, 0x08},    // Enable DSP clock divider
+//{OV7670_REG_EXHCH, (DUMMY_PIXEL >> 4) & 0xF0},
+//{OV7670_REG_EXHCL, (DUMMY_PIXEL & 0xFF)},
+//{OV7670_REG_COM11, 0b11100000}, // Auto-insert dummy rows
+      {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
+      {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
+{OV7670_REG_SCALING_PCLK_DELAY, 0},
+      {0xFF, 0xFF} },
+    set_div8[] = { // 80x60
       {OV7670_REG_COM7, OV7670_COM7_RGB},     // Manual output format, RGB
       {OV7670_REG_COM3, OV7670_COM3_SCALEEN}, // Enable downsampling
       {OV7670_REG_COM14, 0x1B},               // Enable PCLK divider 1:8
-      {OV7670_REG_SCALING_DCWCTR, 0x33},          // Vert/horiz 1:8 downsample
-      {OV7670_REG_SCALING_PCLK_DIV, 0x08},         // Bypass DSP clock divider
-    },
-    { // 40x30
+      {OV7670_REG_SCALING_DCWCTR, 0x33},      // Vert/horiz 1:8 downsample
+      {OV7670_REG_SCALING_PCLK_DIV, 0x08},    // Bypass DSP clock divider
+      {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
+      {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
+      {0xFF, 0xFF} },
+    set_div16[] = { // 40x30
       {OV7670_REG_COM7, OV7670_COM7_RGB},     // Manual output format, RGB
       {OV7670_REG_COM3, OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN}, // Use DSP
       {OV7670_REG_COM14, 0x1B},               // Enable PCLK divider 1:8
-      {OV7670_REG_SCALING_DCWCTR, 0x33},          // Vert/horiz 1:8 downsample
-      {OV7670_REG_SCALING_PCLK_DIV, 0x04},         // DSP 1:16 clock divider
+      {OV7670_REG_SCALING_DCWCTR, 0x33},      // Vert/horiz 1:8 downsample
+      {OV7670_REG_SCALING_PCLK_DIV, 0x04},    // DSP 1:16 clock divider
       {OV7670_REG_SCALING_XSC, 0x40},         // 50% horizontal zoom
       {OV7670_REG_SCALING_YSC, 0x40},         // 50% vertical zoom
+      {0xFF, 0xFF} },
+    *res_settings[] = {
+      set_div1, set_div2, set_div4, set_div8, set_div16 };
 
-// This works for 1:4 size (160x120):
+#if 0
+   {OV7670_REG_TSLB, OV7670_TSLB_YLAST},
+    {OV7670_REG_COM15, OV7670_COM15_RGB565}, // Use 565 (not 555)
+    {OV7670_REG_COM7, OV7670_COM7_SIZE_QVGA | OV7670_COM7_RGB},
+//        {OV7670_REG_COM7, OV7670_COM7_SIZE_QVGA | OV7670_COM7_RGB |
+//        OV7670_COM7_COLORBAR },
+    {OV7670_REG_HREF, 0x80},
+    {OV7670_REG_HSTART, 0x16},
+    {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // Neg VSYNC (req by SAMD51 PCC)
+    {OV7670_REG_HSTOP, 0x04},
+    {OV7670_REG_VSTART, 0x03},
+    {OV7670_REG_VSTOP, 0x7B},
+    {OV7670_REG_VREF, 0x08},
+    {OV7670_REG_COM3, OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN},
+    {OV7670_REG_COM14, 0x00},
+    {OV7670_REG_SCALING_XSC, 0x00},
+    {OV7670_REG_SCALING_YSC, 0x01},
+    {OV7670_REG_SCALING_DCWCTR, 0x11}, // Default scaling = 1:2
+    {OV7670_REG_SCALING_PCLK_DIV, 0x09},
+    {OV7670_REG_SCALING_PCLK_DELAY, 0x02},
+    {OV7670_REG_CLKRC, 0x01},
+    {OV7670_REG_SLOP, 0x20},
+    {OV7670_REG_GAM_BASE, 0x1C},
+    {OV7670_REG_GAM_BASE + 1, 0x28},
+    {OV7670_REG_GAM_BASE + 2, 0x3C},
+    {OV7670_REG_GAM_BASE + 3, 0x55},
+    {OV7670_REG_GAM_BASE + 4, 0x68},
+    {OV7670_REG_GAM_BASE + 5, 0x76},
+    {OV7670_REG_GAM_BASE + 6, 0x80},
+    {OV7670_REG_GAM_BASE + 7, 0x88},
+    {OV7670_REG_GAM_BASE + 8, 0x8F},
+    {OV7670_REG_GAM_BASE + 9, 0x96},
+    {OV7670_REG_GAM_BASE + 10, 0xA3},
+    {OV7670_REG_GAM_BASE + 11, 0xAF},
+    {OV7670_REG_GAM_BASE + 12, 0xC4},
+    {OV7670_REG_GAM_BASE + 13, 0xD7},
+    {OV7670_REG_GAM_BASE + 14, 0xE8},
+    {OV7670_REG_COM8,
+     OV7670_COM8_FASTAEC | OV7670_COM8_AECSTEP | OV7670_COM8_BANDING},
+    {OV7670_REG_GAIN, 0x00},
+    {OV7670_COM2_SSLEEP, 0x00},
+    {OV7670_REG_COM4, 0x00},
+    {OV7670_REG_COM9, 0x20}, // Max AGC value
+    {OV7670_REG_BD50MAX, 0x05},
+    {OV7670_REG_BD60MAX, 0x07},
+    {OV7670_REG_AEW, 0x75},
+    {OV7670_REG_AEB, 0x63},
+    {OV7670_REG_VPT, 0xA5},
+    {OV7670_REG_HAECC1, 0x78},
+    {OV7670_REG_HAECC2, 0x68},
+    {0xA1, 0x03},              // Reserved register?
+    {OV7670_REG_HAECC3, 0xDF}, // Histogram-based AEC/AGC setup
+    {OV7670_REG_HAECC4, 0xDF},
+    {OV7670_REG_HAECC5, 0xF0},
+    {OV7670_REG_HAECC6, 0x90},
+    {OV7670_REG_HAECC7, 0x94},
+    {OV7670_REG_COM8, OV7670_COM8_FASTAEC | OV7670_COM8_AECSTEP |
+                          OV7670_COM8_BANDING | OV7670_COM8_AGC |
+                          OV7670_COM8_AEC},
+    {OV7670_REG_COM5, 0x61},
+    {OV7670_REG_COM6, 0x4B},
+    {0x16, 0x02},            // Reserved register?
+    {OV7670_REG_MVFP, 0x07}, // 0x07,
+    {OV7670_REG_ADCCTR1, 0x02},
+    {OV7670_REG_ADCCTR2, 0x91},
+    {0x29, 0x07}, // Reserved register?
+    {OV7670_REG_CHLF, 0x0B},
+    {0x35, 0x0B}, // Reserved register?
+    {OV7670_REG_ADC, 0x1D},
+    {OV7670_REG_ACOM, 0x71},
+    {OV7670_REG_OFON, 0x2A},
+    {OV7670_REG_COM12, 0x78},
+    {0x4D, 0x40}, // Reserved register?
+    {0x4E, 0x20}, // Reserved register?
+    {OV7670_REG_GFIX, 0x5D},
+    {OV7670_REG_DBLV, 0x40},
+    {OV7670_REG_REG74, 0x19},
+    {0x8D, 0x4F}, // Reserved register?
+    {0x8E, 0x00}, // Reserved register?
+    {0x8F, 0x00}, // Reserved register?
+    {0x90, 0x00}, // Reserved register?
+    {0x91, 0x00}, // Reserved register?
+    {OV7670_REG_DM_LNL, 0x00},
+    {0x96, 0x00}, // Reserved register?
+    {0x9A, 0x80}, // Reserved register?
+    {0xB0, 0x84}, // Reserved register?
+    {OV7670_REG_ABLC1, 0x0C},
+    {0xB2, 0x0E}, // Reserved register?
+    {OV7670_REG_THL_ST, 0x82},
+    {0xB8, 0x0A}, // Reserved register?
+    {OV7670_REG_AWBC1, 0x14},
+    {OV7670_REG_AWBC2, 0xF0},
+    {OV7670_REG_AWBC3, 0x34},
+    {OV7670_REG_AWBC4, 0x58},
+    {OV7670_REG_AWBC5, 0x28},
+    {OV7670_REG_AWBC6, 0x3A},
+    {0x59, 0x88}, // Reserved register?
+    {0x5A, 0x88}, // Reserved register?
+    {0x5B, 0x44}, // Reserved register?
+    {0x5C, 0x67}, // Reserved register?
+    {0x5D, 0x49}, // Reserved register?
+    {0x5E, 0x0E}, // Reserved register?
+    {OV7670_REG_LCC3, 0x04},
+    {OV7670_REG_LCC4, 0x20},
+    {OV7670_REG_LCC5, 0x05},
+    {OV7670_REG_LCC6, 0x04},
+    {OV7670_REG_LCC7, 0x08},
+    {OV7670_REG_AWBCTR3, 0x0A},
+    {OV7670_REG_AWBCTR2, 0x55},
+    {OV7670_REG_MTX1, 0x80},
+    {OV7670_REG_MTX2, 0x80},
+    {OV7670_REG_MTX3, 0x00},
+    {OV7670_REG_MTX4, 0x22},
+    {OV7670_REG_MTX5, 0x5E},
+    {OV7670_REG_MTX6, 0x80}, // 0x40?
+    {OV7670_REG_AWBCTR1, 0x11},
+    {OV7670_REG_AWBCTR0, 0x9F}, // Or use 0x9E for advance AWB
+    {OV7670_REG_BRIGHT, 0x00},
+    {OV7670_REG_CONTRAS, 0x40},
+    {OV7670_REG_CONTRAS_CENTER, 0x80}, // 0x40?
+    {0xFF, 0xFF}
+#endif
+
+// This previously worked for 1:4 size (160x120):
 //    {OV7670_REG_COM14, 0b00011000 | 0b010}, // Man scaling enable, PCLK / 4
 //    {OV7670_REG_SCALING_XSC, 0x20}, // X zoom = 1.0
 //    {OV7670_REG_SCALING_YSC, 0x20}, // Y zoom = 1.0
 //    {OV7670_REG_SCALING_DCWCTR, 0b00100010}, // Vert & horiz downsample 4
-// This also works for 1:4 size (160x120)
+// This also previously worked works for 1:4 size (160x120)
 //    {OV7670_REG_SCALING_XSC, 0x40}, // X zoom = 0.5
 //    {OV7670_REG_SCALING_YSC, 0x40}, // Y zoom = 0.5
 //    {OV7670_REG_SCALING_DCWCTR, 0b00010001}, // Vert & horiz downsample 2
 //    {OV7670_REG_SCALING_PCLK_DIV, 0b11110010}, // Bypass divider, div PCLK by 4
-    },
-  };
+
+OV7670_command *foo = res_settings[size];
+char buffer[100];
+for(int i=0; i<5; i++) {
+  sprintf(buffer, "%02x %02x\n", foo[i].reg, foo[i].value);
+  OV7670_print(buffer);
+}
   OV7670_write_list(platform, res_settings[size]);
 }
 
