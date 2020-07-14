@@ -49,7 +49,7 @@ public:
     @param   height  Camera capture height in pixels, 0=use default size.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
-  OV7670_status begin(uint16_t width=0, uint16_t height=0);
+  OV7670_status begin(uint16_t width = 0, uint16_t height = 0);
 
   /*!
     @brief   Reads value of one register from the OV7670 camera over I2C.

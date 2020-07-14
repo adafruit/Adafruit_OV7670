@@ -84,8 +84,8 @@ OV7670_status Adafruit_OV7670::begin(uint16_t width, uint16_t height) {
 
   _width = 320;
   _height = 240;
-_width = 160;
-_height = 120;
+  _width = 160;
+  _height = 120;
 
   // Alloc buffer for camera
   buffer = (uint16_t *)malloc(_width * _height * sizeof(uint16_t));

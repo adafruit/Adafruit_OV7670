@@ -258,7 +258,7 @@ typedef struct {
 #define OV7670_REG_THL_ST 0xB3             //< ABLC target
 #define OV7670_REG_SATCTR 0xC9             //< Saturation control
 
-#define OV7670_REG_LAST OV7670_REG_SATCTR  //< Maximum register address
+#define OV7670_REG_LAST OV7670_REG_SATCTR //< Maximum register address
 
 // C++ ACCESSIBLE FUNCTIONS ------------------------------------------------
 
