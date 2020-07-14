@@ -45,11 +45,20 @@ public:
   /*!
     @brief   Allocate and initialize resources behind an Adafruit_OV7670
              instance.
-    @param   width   Camera capture width in pixels, 0=use default size.
-    @param   height  Camera capture height in pixels, 0=use default size.
+    @param   size  Frame size as a power-of-two reduction of VGA resolution.
+                   Available sizes are OV7670_SIZE_DIV1 (640x480),
+                   OV7670_SIZE_DIV2 (320x240), OV7670_SIZE_DIV4 (160x120),
+                   OV7670_SIZE_DIV8 and OV7670_SIZE_DIV16.
+    @param   fps   Desired capture framerate, in frames per second, as a
+                   float up to 30.0. Actual device frame rate may vary from
+                   this, depending on a host's available PWM timing.
+                   Generally, the actual device fps will be equal or
+                   nearest-available below the requested rate, only in
+                   rare cases of extremely low frame rates will a higher
+                   value be used.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
-  OV7670_status begin(uint16_t width = 0, uint16_t height = 0);
+  OV7670_status begin(OV7670_size size=OV7670_SIZE_DIV4, float fps=30.0);
 
   /*!
     @brief   Reads value of one register from the OV7670 camera over I2C.
@@ -110,7 +119,7 @@ public:
   void capture(void);
 
 private:
-  OV7670_status arch_begin(void); ///< Architecture-specific periph setup
+  OV7670_status arch_begin(OV7670_size size, float fps); // Arch periph setup
   TwoWire *wire;                  ///< I2C interface
   uint16_t *buffer;               ///< Camera buffer allocated by lib
   OV7670_pins pins;               ///< Camera physical connections

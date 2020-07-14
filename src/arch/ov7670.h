@@ -272,7 +272,8 @@ extern "C" {
 // Architecture- and platform-neutral initialization function.
 // Called by the platform init function, this in turn may call an
 // architecture-specific init function.
-extern OV7670_status OV7670_begin(OV7670_host *host);
+extern OV7670_status OV7670_begin(OV7670_host *host, OV7670_size size,
+                                  float fps);
 
 // Configure camera frame rate. Actual resulting frame rate (returned) may
 // be different depending on available clock frequencies. Result will only
@@ -285,7 +286,7 @@ extern OV7670_status OV7670_begin(OV7670_host *host);
 // rates because it varies with architecture, depending on OV7670_XCLK_HZ.
 extern float OV7670_set_fps(void *platform, float fps);
 
-extern void OV7670_set_size(void *platform, uint8_t size);
+extern void OV7670_set_size(void *platform, OV7670_size size);
 
 #ifdef __cplusplus
 };

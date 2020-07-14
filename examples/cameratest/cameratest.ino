@@ -35,13 +35,13 @@ void setup() {
   digitalWrite(LED_BUILTIN, LOW);
 
   Serial.begin(9600);
-  // while (!Serial);
+   while (!Serial);
   Serial.println("Hello");
   Serial.flush();
 
   // Once started, the camera continually fills a frame buffer
   // automagically; no need to request a frame.
-  OV7670_status status = cam.begin();
+  OV7670_status status = cam.begin(OV7670_SIZE_DIV4, 30.0);
   if (status != OV7670_STATUS_OK) {
     Serial.println("Camera begin() fail");
     Serial.flush();
