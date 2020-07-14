@@ -89,7 +89,7 @@ void loop() {
 #endif
     tft.endWrite();   // Close out prior transfer
     tft.startWrite(); // and start a fresh one (required)
-    tft.setAddrWindow(0, 0, 320, 240);
+    tft.setAddrWindow(0, 0, cam.width(), cam.height());
   }
 
   // Pause the camera DMA - hold buffer steady to avoid tearing
@@ -103,12 +103,12 @@ void loop() {
 
 #if defined(USE_SPI_DMA)
   tft.dmaWait();
-  tft.writePixels(cam.getBuffer(), 320 * 240, false, true);
+  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
 #elif defined(USE_SPI_BRUTE)
   brute.wait();
-  brute.write((uint8_t *)cam.getBuffer(), 320 * 240 * 2);
+  brute.write((uint8_t *)cam.getBuffer(), cam.width() * cam.height() * 2);
 #else
-  tft.writePixels(cam.getBuffer(), 320 * 240, false, true);
+  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
 #endif
 
   cam.resume(); // Resume DMA to camera buffer

@@ -38,29 +38,74 @@ void OV7670_write_list(void *platform, OV7670_command *cmd) {
 
 // CAMERA STARTUP ----------------------------------------------------------
 
-static const OV7670_command OV7670_init[] = {
-    {OV7670_REG_TSLB, OV7670_TSLB_YLAST},
-    {OV7670_REG_COM15, OV7670_COM15_RGB565}, // Use 565 (not 555)
-    {OV7670_REG_COM7, OV7670_COM7_SIZE_QVGA | OV7670_COM7_RGB},
+// Remove this, have begin() call the set_fps function first.
+#if 0
+//    // This also yields 24 MHz by upscaling w PLL then downscaling by same?
+//    {OV7670_REG_DBLV, 0x40}, // 0100 0000 PLL = input clock * 4
+//    {OV7670_REG_CLKRC, 0x01},  // Internal clock = PLL / 2
+#else
+//    // This should be a more direct setup for 24 MHz clock
+//    {OV7670_REG_DBLV, 0}, // 0000 0000 Bypass PLL (use XCLK direct)
+//    {OV7670_REG_CLKRC, 0b01000000}, // Internal clock = PLL = XCLK
+#endif
     //    {OV7670_REG_COM7, OV7670_COM7_SIZE_QVGA | OV7670_COM7_RGB |
     //    OV7670_COM7_COLORBAR },
-    {OV7670_REG_HREF, 0x80},
-    {OV7670_REG_HSTART, 0x16},
+
+static const OV7670_command OV7670_init[] = {
+    // Manual output format, RGB, use RGB565 and full 0-255 output range
+    {OV7670_REG_COM7, OV7670_COM7_RGB},
+    {OV7670_REG_COM15, OV7670_COM15_RGB565 | OV7670_COM15_R00FF},
+    {OV7670_REG_RGB444, 0},
+
+
+
+
+//    {OV7670_REG_TSLB, OV7670_TSLB_YLAST | 1}, // Auto output window
+    {OV7670_REG_TSLB, OV7670_TSLB_YLAST}, // No auto window
     {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // Neg VSYNC (req by SAMD51 PCC)
+
+    {OV7670_REG_HSTART, 0x16},
     {OV7670_REG_HSTOP, 0x04},
+    {OV7670_REG_HREF, 0x80},
     {OV7670_REG_VSTART, 0x03},
     {OV7670_REG_VSTOP, 0x7B},
     {OV7670_REG_VREF, 0x08},
-    {OV7670_REG_COM3, OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN},
-    {OV7670_REG_COM14, 0x00},
-    {OV7670_REG_SCALING_XSC, 0x00},
-    {OV7670_REG_SCALING_YSC, 0x01},
-//{OV7670_REG_SCALING_XSC, 0x40}, // Anything above 0x40 = 0.5
-//{OV7670_REG_SCALING_YSC, 0x40}, // Anything above 0x40 = 0.5
-    {OV7670_REG_SCALINGDCW, 0x11}, // Default scaling = 1:2
-    {OV7670_REG_SCALINGPCLK, 0x09},
-    {OV7670_REG_SPD, 0x02},
-    {OV7670_REG_CLKRC, 0x01},
+
+
+// Ah, need to set pixel clock delay:
+// 640 / pixel clock divider - 240
+// 640 / 2 - 240 = 80
+//    {OV7670_REG_SCALING_PCLK_DELAY, 640 / 2 - 240},
+
+// Scaling pixel clock delay
+// 640 / 2 -> 320 -> doesn't fit
+// It's 7 bits SCALING_PCLK_DELAY[6:0]
+// Maybe it should be 1/2?
+//{ OV7670_REG_SCALING_PCLK_DELAY, 0b01000000 }, // Scaling pixel clock delay
+// Try setting up that dummy pixel thing
+// How many dummy pixels? Well, PCLK is /2, so width is like 320
+// Need to 'eat' 80 pixels or 80/640
+// I think the value we need is 98 = 0000 0110 0010
+// This is split across two registers
+// PCLK is divided by 2 though, so does that mean 80/320?
+// row interval = 2 * (784 + dummy pixels) * 24 MHz
+//{OV7670_REG_EXHCH, (0 >> 4) & 0xF0}, // Dummy pixels high
+//{OV7670_REG_EXHCL, (0 & 0xFF)}, // Dummy pixels low
+//{OV7670_REG_COM11, 0x80}, // Insert dummy rows automatically (wrong)
+// Using a PCLK/4 and 320 dummy pixels shows right image
+//    {OV7670_REG_HSTART, 0},
+//    {OV7670_REG_HSTOP, 639 >> 3}, // High 8 bits
+//    {OV7670_REG_HREF, 0b10000000 | ((639 & 0b111) << 3) }, // Low 3 bits
+/* orig href stuff:
+{OV7670_REG_HSTART, 0x16}, 22  this doesn't even make sense
+{OV7670_REG_HSTOP, 0x04},  4
+{OV7670_REG_HREF, 0x80},   10000000
+*/
+//    {OV7670_REG_VSTART, 0},
+//    {OV7670_REG_VSTOP, 479 >> 3}, // High 8 bits
+//    {OV7670_REG_VREF, (479 & 0b111) << 3},
+
+    {OV7670_REG_SCALING_PCLK_DELAY, 0x02},
     {OV7670_REG_SLOP, 0x20},
     {OV7670_REG_GAM_BASE, 0x1C},
     {OV7670_REG_GAM_BASE + 1, 0x28},
@@ -115,7 +160,6 @@ static const OV7670_command OV7670_init[] = {
     {0x4D, 0x40}, // Reserved register?
     {0x4E, 0x20}, // Reserved register?
     {OV7670_REG_GFIX, 0x5D},
-    {OV7670_REG_DBLV, 0x40},
     {OV7670_REG_REG74, 0x19},
     {0x8D, 0x4F}, // Reserved register?
     {0x8E, 0x00}, // Reserved register?
@@ -159,7 +203,7 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_AWBCTR0, 0x9F}, // Or use 0x9E for advance AWB
     {OV7670_REG_BRIGHT, 0x00},
     {OV7670_REG_CONTRAS, 0x40},
-    {OV7670_REG_CONTRAS_CTR, 0x80}, // 0x40?
+    {OV7670_REG_CONTRAS_CENTER, 0x80}, // 0x40?
     {OV7670_REG_LAST + 1, 0x00},    // End-of-data marker
 };
 
@@ -198,11 +242,162 @@ OV7670_status OV7670_begin(OV7670_host *host) {
   }
   OV7670_delay_ms(1); // Datasheet: tS:RESET = 1 ms
 
+  (void)OV7670_set_fps(host->platform, 30.0);
+  OV7670_set_size(host->platform, OV7670_SIZE_DIV2);
+
   // Send initial configuration to camera
   OV7670_write_list(host->platform, OV7670_init);
 
   OV7670_delay_ms(300); // tS:REG = 300 ms (settling time = 10 frames)
 }
+
+// Configure camera frame rate. Actual resulting frame rate (returned) may
+// be different depending on available clock frequencies. Result will only
+// exceed input if necessary for minimum supported rate, but this is very
+// rare, typically below 1 fps. In all other cases, result will be equal
+// or less than the requested rate, up to a maximum of 30 fps (the "or less"
+// is because requested fps may be based on other host hardware timing
+// constraints (e.g. screen) and rounding up to a closer-but-higher frame
+// rate would be problematic). There is no hardcoded set of fixed frame
+// rates because it varies with architecture, depending on OV7670_XCLK_HZ.
+
+float OV7670_set_fps(void *platform, float fps) {
+
+  // Pixel clock (PCLK), which determines overall frame rate, is a
+  // function of XCLK input frequency (OV7670_XCLK_HZ), a PLL multiplier
+  // and then an integer division factor (1-32). These are the available
+  // OV7670 PLL ratios:
+  static const uint8_t pll_ratio[] = { 1, 4, 6, 8 };
+  const uint8_t num_plls = sizeof pll_ratio / sizeof pll_ratio[0];
+
+  // Constrain frame rate to upper and lower limits
+  fps = (fps > 30) ? 30 : fps;               // Max 30 FPS
+  float pclk_target = fps * 4000000.0 / 5.0; // Ideal PCLK Hz for target FPS
+  uint32_t pclk_min = OV7670_XCLK_HZ / 32;   // Min PCLK determines min FPS
+  if(pclk_target < (float)pclk_min) {        // If PCLK target is below limit
+    OV7670_write_register(platform, OV7670_REG_DBLV, 0);   // 1:1 PLL
+    OV7670_write_register(platform, OV7670_REG_CLKRC, 31); // 1/32 div
+    return (float)(pclk_min * 5 / 4000000);  // Return min frame rate
+  }
+
+  // Find nearest available FPS without going over. This is done in a
+  // brute-force manner, testing all 127 PLL-up by divide-down permutations
+  // and tracking the best fit. I’m certain there are shortcuts but was
+  // having trouble with my math, might revisit later. It's not a huge
+  // bottleneck...MCUs are fast now, many cases are quickly discarded, and
+  // this operation is usually done only once on startup (the I2C transfers
+  // probably take longer).
+
+  uint8_t best_pll = 0;    // Index (not value) of best PLL match
+  uint8_t best_div = 1;    // Value of best division factor match
+  float best_delta = 30.0; // Best requested vs actual FPS (init to "way off")
+
+  for(uint8_t p=0; p < num_plls; p++) {
+    uint32_t xclk_pll = OV7670_XCLK_HZ * pll_ratio[p]; // PLL'd freq
+    uint8_t first_div = p ? 2 : 1; // Min div is 1 for PLL 1:1, else 2
+    for(uint8_t div=first_div; div <= 32; div++) {
+      uint32_t pclk_result = xclk_pll / div; // PCLK-up-down permutation
+      if(pclk_result > pclk_target) {        // Exceeds target?
+        continue;                            //  Skip it
+      }
+      float fps_result = (float)pclk_result * 5.0 / 4000000.0;
+      float delta = fps - fps_result; // How far off?
+      if(delta < best_delta) {        // Best match yet?
+        best_delta = delta;           //  Save delta,
+        best_pll = p;                 //  pll and
+        best_div = div;               //  div for later use
+      }
+    }
+  }
+
+  // Set up DBLV and CLKRC registers with best PLL and div values
+  if(pll_ratio[best_pll] == best_div) { // If PLL and div are same (1:1)
+    // Bypass PLL, use external clock directly
+    OV7670_write_register(platform, OV7670_REG_DBLV, 0);
+    OV7670_write_register(platform, OV7670_REG_CLKRC, 0x40);
+  } else {
+    // Set DBLV[7:6] for PLL, CLKRC[5:0] for div-1 (1-32 stored as 0-31)
+    OV7670_write_register(platform, OV7670_REG_DBLV, best_pll << 6);
+    OV7670_write_register(platform, OV7670_REG_CLKRC, best_div - 1);
+  }
+
+  return fps - best_delta; // Return actual frame rate
+}
+
+// Initial support will just be VGA powers-of-two sizing
+// CIF is garbage
+
+void OV7670_set_size(void *platform, OV7670_size size) {
+  // Array of five command lists, index of each (0-4) aligns with the five
+  // OV7670_size enumeration values. If enum changes, list must change!
+// 1 to 1/2x   (640 to 321)  1 pixel clock/byte   SCALING_PCLK_DIV[3:0] = 0
+// 1/2 to 1/4  (320 to 161)  2 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 1
+// 1/4 to 1/8  (160 to 81)   4 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 2
+// 1/8 to 1/16 (80 to 40)    8 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 3
+  static const OV7670_command *res_settings[] = {
+    { // VGA 640x480
+      {OV7670_REG_COM3, 0x00},                // No downsampling or zoom
+      {OV7670_REG_COM14, 0x00},               // Normal PCLK, no divider
+      {OV7670_REG_SCALING_DCWCTR, 0x00},          // No vert/horiz downsampling
+      {OV7670_REG_SCALING_PCLK_DIV, 0x08},         // Bypass DSP clock divider
+    },
+    { // QVGA 320x240
+//for manual scaler settings, set registers
+//COM14[3] (0x3E) and SCALING_PCLK_ DELAY[7] 
+//0000 0100
+      {OV7670_REG_COM7, OV7670_COM7_RGB},     // Manual output format, RGB
+      {OV7670_REG_COM3, OV7670_COM3_SCALEEN}, // Enable downsampling
+      {OV7670_REG_COM14, 0x19},               // Enable PCLK divider 1:2
+//pixel clock delay
+      {0xA2, 02}, // pixel clock delay
+      {OV7670_REG_SCALING_DCWCTR, 0x11},          // Vert+horiz 1:2 downsample
+      {OV7670_REG_SCALING_PCLK_DIV, 0xF1},         // Bypass DSP clock divider
+    },
+    { // QQVGA 160x120
+      {OV7670_REG_COM7, OV7670_COM7_RGB},     // Manual output format, RGB
+      {OV7670_REG_COM3, OV7670_COM3_SCALEEN}, // Enable downsampling
+      {OV7670_REG_COM14, 0x1A},               // Enable PCLK divider 1:4
+      {OV7670_REG_SCALING_DCWCTR, 0x22},          // Vert/horiz 1:4 downsample
+      {OV7670_REG_SCALING_PCLK_DIV, 0x08},         // Bypass DSP clock divider
+    },
+    { // 80x60
+      {OV7670_REG_COM7, OV7670_COM7_RGB},     // Manual output format, RGB
+      {OV7670_REG_COM3, OV7670_COM3_SCALEEN}, // Enable downsampling
+      {OV7670_REG_COM14, 0x1B},               // Enable PCLK divider 1:8
+      {OV7670_REG_SCALING_DCWCTR, 0x33},          // Vert/horiz 1:8 downsample
+      {OV7670_REG_SCALING_PCLK_DIV, 0x08},         // Bypass DSP clock divider
+    },
+    { // 40x30
+      {OV7670_REG_COM7, OV7670_COM7_RGB},     // Manual output format, RGB
+      {OV7670_REG_COM3, OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN}, // Use DSP
+      {OV7670_REG_COM14, 0x1B},               // Enable PCLK divider 1:8
+      {OV7670_REG_SCALING_DCWCTR, 0x33},          // Vert/horiz 1:8 downsample
+      {OV7670_REG_SCALING_PCLK_DIV, 0x04},         // DSP 1:16 clock divider
+      {OV7670_REG_SCALING_XSC, 0x40},         // 50% horizontal zoom
+      {OV7670_REG_SCALING_YSC, 0x40},         // 50% vertical zoom
+
+// This works for 1:4 size (160x120):
+//    {OV7670_REG_COM14, 0b00011000 | 0b010}, // Man scaling enable, PCLK / 4
+//    {OV7670_REG_SCALING_XSC, 0x20}, // X zoom = 1.0
+//    {OV7670_REG_SCALING_YSC, 0x20}, // Y zoom = 1.0
+//    {OV7670_REG_SCALING_DCWCTR, 0b00100010}, // Vert & horiz downsample 4
+// This also works for 1:4 size (160x120)
+//    {OV7670_REG_SCALING_XSC, 0x40}, // X zoom = 0.5
+//    {OV7670_REG_SCALING_YSC, 0x40}, // Y zoom = 0.5
+//    {OV7670_REG_SCALING_DCWCTR, 0b00010001}, // Vert & horiz downsample 2
+//    {OV7670_REG_SCALING_PCLK_DIV, 0b11110010}, // Bypass divider, div PCLK by 4
+    },
+  };
+  OV7670_write_list(platform, res_settings[size]);
+}
+
+
+
+
+
+
+#if 0
+
 
 #define OV7670_VGA_WIDTH  640
 #define OV7670_VGA_HEIGHT 480
@@ -265,6 +460,11 @@ static void size_axis(uint16_t *n, uint16_t cif, uint16_t max,
   // This will change the value of 'n'
 }
 
+// Failing to get this to work.
+// Initial support will just be VGA powers-of-two sizing
+// The canned settings in COM7 aren't especially useful here.
+// There's QVGA, but no full-VGA or QQ or QQQ or QQQQ
+
 // Pass in desired width & height (as pointers to uint16_t),
 // values will be modified with actual resolution set.
 bool OV7670_setResolution(uint16_t *width, uint16_t *height) {
@@ -318,9 +518,49 @@ bool OV7670_setResolution(uint16_t *width, uint16_t *height) {
     size_axis(*width, OV7670_CIF_WIDTH, OV7670_VGA_WIDTH, &ds_x, &ratio_x);
     size_axis(*height, OV7670_CIF_HEIGHT, OV7670_VGA_HEIGHT, &ds_y, &ratio_y);
   }
-#endif
+#endif // __SAMD51__
 
   // DO MAGIC HERE, issue stuff to camera
   // Will also require reallocing buffer
   // Maybe that's done in the calling code
 }
+
+
+
+NOTES:
+Although the camera can output data in various formats,
+this lib will ALWAYS use RGB565 format.
+COM7[2] = 1, COM7[0] = 0, COM15[5] = 0, COM15[4] = 1
+In RGB565 format, it supports VGA and any resolution below CIF.
+If manually setting a resolution (COM14[3] and SCALING_PCLK_DELAY[7] must
+ne set), the output window settings must be adjusted (HSTART, HSTOP, HREF,
+VSTRT, VSTOP, VREF. Register TSLB[0] must be 0 for this to happen.
+Sensor array always outputs VGA, anything below that is scaled.
+Mirroring is supported via MVFP[5] and MVFP[4].
+
+Input clock is multipled by a PLL multiplier (DBLV[7:6]), then divided by a
+pre-scaler (CLKRC[5:0]) to produce the internal clock frequency.
+Frame rate is adjusted by the clock pre-scaler. Max VGA frame rate is 30 fps.
+PCLK is the pixel clock.
+Frame rate can also be adjusted by inserting dummy pixels in the
+horizontal and vertical blanking periods, keeping PCLK the same?
+There's an automatic frame rate setting as well (sets up dummy rows/pixels).
+
+Exposure time is a function of row interval. Longer exposures are generally
+good, so running at max frame rate might not always be the best. Might want
+to offer other rates.
+
+PIXEL CLOCK DIVIDER - this ONLY applies to HORIZONTAL scaling factor
+1 to 1/2x   (640 to 321)  1 pixel clock/byte   SCALING_PCLK_DIV[3:0] = 0
+1/2 to 1/4  (320 to 161)  2 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 1
+1/4 to 1/8  (160 to 81)   4 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 2
+1/8 to 1/16 (80 to 40)    8 pixel clocks/byte  SCALING_PCLK_DIV[3:0] = 3
+Since this mentions 1/16x, this implies the combination of both
+downsampling and digital zoom. But I think just the downsample
+factor is enough to identify what's needed for the DIV, right?
+
+Currently at 160, I'm right at the limit where either 2 or 4 works.
+
+Supported frame rates in Arduino lib are 1, 5, 10, 15 and 30
+
+#endif // 0
