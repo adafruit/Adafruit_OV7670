@@ -41,7 +41,7 @@ void setup() {
 
   // Once started, the camera continually fills a frame buffer
   // automagically; no need to request a frame.
-  OV7670_status status = cam.begin(OV7670_SIZE_DIV4, 30.0);
+  OV7670_status status = cam.begin(OV7670_SIZE_DIV16, 30.0);
   if (status != OV7670_STATUS_OK) {
     Serial.println("Camera begin() fail");
     Serial.flush();
@@ -73,6 +73,15 @@ uint32_t frame = 999; // Force 1st frame as keyframe
 
 void loop() {
   Serial.println("ping");
+
+  if(Serial.available()) {
+    uint32_t HSTART = Serial.parseInt();
+    uint32_t HSTOP = (HSTART + 640) % 784;
+Serial.printf("%d %d\n", HSTART, HSTOP);
+cam.writeRegister(OV7670_REG_HSTART, (HSTART >> 3) & 0xFF);
+cam.writeRegister(OV7670_REG_HSTOP, (HSTOP >> 3) & 0xFF);
+cam.writeRegister(OV7670_REG_HREF, 0x00 | ((HSTOP & 7) << 3) | (HSTART & 7));
+  }
 
   // setAddrWindow() involves a lot of context switching that can
   // slow things down a bit, so we don't do it on every frame.

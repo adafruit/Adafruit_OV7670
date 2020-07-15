@@ -55,10 +55,15 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_VSTART, 0x03}, // 0000 0011
     {OV7670_REG_VSTOP, 0x7B},  // 0111 1011
     {OV7670_REG_VREF, 0x08},   // 0000 1000
-    // HSTART = 000 1011 0000 0x0B0
-    // HSTOP  = 000 0010 0001 0x021
-    // VSTART =  00 0000 1100 0x00C (12)
-    // VSTOP  =  01 1110 1110 0x1EE (494)  (height = 482)
+//000 1010 0001 0xA1 = 161 start
+//000 0010 0000 0x20 = 32
+//161 + 640 = 801
+//801 % 784 = 17
+
+
+// VGA scan line takes 784 PCLKs (640 + 144 between lines)
+//HSTOP = (HSTART + 640) % 784
+
 #endif
 #if 0
     // from Arduino lib (from Linux):
@@ -308,46 +313,77 @@ void OV7670_set_size(void *platform, OV7670_size size) {
            {OV7670_REG_SCALING_YSC, 0x20},      // Y zoom = 1.0
            {0xFF, 0xFF}},
       set_div2[] = {                             // QVGA 320x240
+// 0x19, 0x11, 0xF1
+// HSTART = 174
            {OV7670_REG_COM3, OV7670_COM3_DCWEN}, // Enable downsampling
            {OV7670_REG_COM14, 0x19},             // Enable PCLK 1:2
            {OV7670_REG_SCALING_DCWCTR, 0x11},    // Vert+horiz 1:2 downsample
-           {OV7670_REG_SCALING_PCLK_DIV, 0x08},  // Bypass DSP clock divider
+           {OV7670_REG_SCALING_PCLK_DIV, 0xF1},  // DSP 1:2 clock divider
            {OV7670_REG_SCALING_XSC, 0x20},       // X zoom = 1.0
            {OV7670_REG_SCALING_YSC, 0x20},       // Y zoom = 1.0
            {OV7670_REG_SCALING_PCLK_DELAY, 2},
            {0xFF, 0xFF}},
       set_div4[] = {                             // QQVGA 160x120
+// 0x1A, 0x22, 0xF2
+// HSTART = 184
            {OV7670_REG_COM3, OV7670_COM3_DCWEN}, // Enable downsampling
            {OV7670_REG_COM14, 0x1A},             // Enable PCLK divider 1:4
-// Not quite working yet, image is horizontally half offset
-// Might need dummy pixels or HSYNC delay?
-// PSHIFT or EXHCH&EXHCL or HSYST+HSYEN or SCALING_PCLK_DELAY ?
-// Not EXHCH/L, not PSHFT
            {OV7670_REG_SCALING_DCWCTR, 0x22},      // Vert/horiz 1:4 downsample
-           {OV7670_REG_SCALING_PCLK_DIV, 0x08},    // Bypass DSP clock divider
+           {OV7670_REG_SCALING_PCLK_DIV, 0xF2},    // DSP 1:4 clock divider
            {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
            {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
-           {OV7670_REG_SCALING_PCLK_DELAY, 1},
+           {OV7670_REG_SCALING_PCLK_DELAY, 2},
+#define HSTART 184
+#define HSTOP ((HSTART + 640) % 784)
+#define VSTART 15
+#define VSTOP (VSTART + 480)
+// In example code, vstart & stop make sense, always 480 apart.
+// hstart/stop are just weird though.
+{OV7670_REG_HSTART, (HSTART >> 3) & 0xFF},
+{OV7670_REG_HSTOP, (HSTOP >> 3) & 0xFF},
+{OV7670_REG_HREF, 0x80 | ((HSTOP & 7) << 3) | (HSTART & 7)},
+{OV7670_REG_VSTART, (VSTART >> 2) & 0xFF},
+{OV7670_REG_VSTOP, (VSTOP >> 2) & 0xFF},
+{OV7670_REG_VREF, ((VSTOP & 3) << 2) | (VSTART & 3)},
            {0xFF, 0xFF}},
       set_div8[] = {                               // 80x60
+// 0x1B, 0x33, 0xF3
+// HSTART = 210
            {OV7670_REG_COM3, OV7670_COM3_DCWEN},   // Enable downsampling
            {OV7670_REG_COM14, 0x1B},               // Enable PCLK divider 1:8
            {OV7670_REG_SCALING_DCWCTR, 0x33},      // Vert/horiz 1:8 downsample
-           {OV7670_REG_SCALING_PCLK_DIV, 0x08},    // Bypass DSP clock divider
+           {OV7670_REG_SCALING_PCLK_DIV, 0xF3},    // DSP 1:8 clock divider
            {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
            {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
-           {OV7670_REG_SCALING_PCLK_DELAY, 1},
+           {OV7670_REG_SCALING_PCLK_DELAY, 2},
            {0xFF, 0xFF}},
       set_div16[] = {                              // 40x30
 // Not working yet
+// HSTART = 240? w/PCLK_DELAY of 2, but has bar on left
            {OV7670_REG_COM3,
             OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN}, // Use DSP
-           {OV7670_REG_COM14, 0x1B},               // Enable PCLK divider 1:8
+           {OV7670_REG_COM14, 0x1C},               // Enable PCLK divider 1:16
            {OV7670_REG_SCALING_DCWCTR, 0x33},      // Vert/horiz 1:8 downsample
-           {OV7670_REG_SCALING_PCLK_DIV, 0x04},    // DSP 1:16 clock divider
+           {OV7670_REG_SCALING_PCLK_DIV, 0xF4},    // DSP 1:16 clock divider
            {OV7670_REG_SCALING_XSC, 0x40},         // 50% horizontal zoom
            {OV7670_REG_SCALING_YSC, 0x40},         // 50% vertical zoom
            {OV7670_REG_SCALING_PCLK_DELAY, 2},
+#define VSTART2 8 // 18 before, seemed OK
+#define VSTOP2 (VSTART2 + 479)
+{OV7670_REG_VSTART, (VSTART2 >> 2) & 0xFF},
+{OV7670_REG_VSTOP, (VSTOP2 >> 2) & 0xFF},
+{OV7670_REG_VREF, ((VSTOP2 & 3) << 2) | (VSTART2 & 3)},
+#if 0
+// From OV explorer code:
+       {OV7670_REG_HSTART,0x13},
+       {OV7670_REG_HSTOP,0x01},
+       {OV7670_REG_HREF,0x4A},
+       {OV7670_REG_VSTART,0x02}, // 000 0001 0010 0x012 = 18
+       {OV7670_REG_VSTOP,0x7A},  // 0111 1010 001 0x3D1 = 977 ? (480 * 2)
+       {OV7670_REG_VREF,0x0A},   // 0000 1010
+// Nope, still gets bar on left (if HSTART=240)
+#endif
+
            {0xFF, 0xFF}},
       *res_settings[] = {set_div1, set_div2, set_div4, set_div8, set_div16};
 
