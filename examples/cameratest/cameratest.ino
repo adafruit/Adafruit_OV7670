@@ -71,16 +71,28 @@ void setup() {
 #define KEYFRAME 30   // Periodically issue setAddrWindow commands
 uint32_t frame = 999; // Force 1st frame as keyframe
 
+void OV7670_hv(uint16_t vstart, uint16_t hstart,
+  uint8_t edge_offset) {
+  uint16_t vstop = vstart + 480;
+  uint16_t hstop = (hstart + 640) % 768;
+  cam.writeRegister(OV7670_REG_HSTART, (hstart >> 3) & 0xFF);
+  cam.writeRegister(OV7670_REG_HSTOP, (hstop >> 3) & 0xFF);
+  cam.writeRegister(OV7670_REG_HREF,
+    (edge_offset << 6) | ((hstop & 7) << 3) | (hstart & 7));
+  cam.writeRegister(OV7670_REG_VSTART, (vstart >> 2) & 0xFF);
+  cam.writeRegister(OV7670_REG_VSTOP, (vstop >> 2) & 0xFF);
+  cam.writeRegister(OV7670_REG_VREF,
+    ((vstop & 3) << 2) | (vstart & 3));
+}
+
 void loop() {
   Serial.println("ping");
 
   if(Serial.available()) {
+    uint32_t VSTART = Serial.parseInt();
     uint32_t HSTART = Serial.parseInt();
-    uint32_t HSTOP = (HSTART + 640) % 784;
-Serial.printf("%d %d\n", HSTART, HSTOP);
-cam.writeRegister(OV7670_REG_HSTART, (HSTART >> 3) & 0xFF);
-cam.writeRegister(OV7670_REG_HSTOP, (HSTOP >> 3) & 0xFF);
-cam.writeRegister(OV7670_REG_HREF, 0x00 | ((HSTOP & 7) << 3) | (HSTART & 7));
+    uint32_t EDGE_OFFSET = Serial.parseInt();
+    OV7670_hv(VSTART, HSTART, EDGE_OFFSET);
   }
 
   // setAddrWindow() involves a lot of context switching that can

@@ -45,6 +45,7 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_COM15, OV7670_COM15_RGB565 | OV7670_COM15_R00FF},
     {OV7670_REG_TSLB, OV7670_TSLB_YLAST},    // No auto window
     {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // -VSYNC (req by SAMD51 PCC)
+    {OV7670_REG_SCALING_PCLK_DELAY, 2},
 
 #if 1
     // My old numbers (from prior lib):
@@ -300,7 +301,31 @@ float OV7670_set_fps(void *platform, float fps) {
 // Initial support will just be VGA powers-of-two sizing
 // CIF is garbage
 
+void OV7670_hv(void *platform, uint16_t vstart, uint16_t hstart,
+  uint8_t edge_offset) {
+  uint16_t vstop = vstart + 479;
+  uint16_t hstop = (hstart + 640) % 768;
+  OV7670_write_register(platform, OV7670_REG_HSTART, (hstart >> 3) & 0xFF);
+  OV7670_write_register(platform, OV7670_REG_HSTOP, (hstop >> 3) & 0xFF);
+  OV7670_write_register(platform, OV7670_REG_HREF,
+    (edge_offset << 6) | ((hstop & 7) << 3) | (hstart & 7));
+  OV7670_write_register(platform, OV7670_REG_VSTART, (vstart >> 2) & 0xFF);
+  OV7670_write_register(platform, OV7670_REG_VSTOP, (vstop >> 2) & 0xFF);
+  OV7670_write_register(platform, OV7670_REG_VREF,
+    ((vstop & 3) << 2) | (vstart & 3));
+}
+
+
 void OV7670_set_size(void *platform, OV7670_size size) {
+
+  // Wait, zoom stuff can go in here too. One struct to hold them all.
+  static struct {
+    uint8_t vstart;
+    uint8_t hstart;
+    uint8_t edge_offset;
+  } window[] = {
+  };
+
   // Array of five command lists, index of each (0-4) aligns with the five
   // OV7670_size enumeration values. If enum changes, list must change!
   static const OV7670_command
@@ -321,7 +346,6 @@ void OV7670_set_size(void *platform, OV7670_size size) {
            {OV7670_REG_SCALING_PCLK_DIV, 0xF1},  // DSP 1:2 clock divider
            {OV7670_REG_SCALING_XSC, 0x20},       // X zoom = 1.0
            {OV7670_REG_SCALING_YSC, 0x20},       // Y zoom = 1.0
-           {OV7670_REG_SCALING_PCLK_DELAY, 2},
            {0xFF, 0xFF}},
       set_div4[] = {                             // QQVGA 160x120
 // 0x1A, 0x22, 0xF2
@@ -332,7 +356,6 @@ void OV7670_set_size(void *platform, OV7670_size size) {
            {OV7670_REG_SCALING_PCLK_DIV, 0xF2},    // DSP 1:4 clock divider
            {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
            {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
-           {OV7670_REG_SCALING_PCLK_DELAY, 2},
 #define HSTART 184
 #define HSTOP ((HSTART + 640) % 784)
 #define VSTART 15
@@ -355,11 +378,11 @@ void OV7670_set_size(void *platform, OV7670_size size) {
            {OV7670_REG_SCALING_PCLK_DIV, 0xF3},    // DSP 1:8 clock divider
            {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
            {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
-           {OV7670_REG_SCALING_PCLK_DELAY, 2},
            {0xFF, 0xFF}},
       set_div16[] = {                              // 40x30
 // Not working yet
 // HSTART = 240? w/PCLK_DELAY of 2, but has bar on left
+// OR in 0xC0 to HREF, bar still present but less so, use delay of 252
            {OV7670_REG_COM3,
             OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN}, // Use DSP
            {OV7670_REG_COM14, 0x1C},               // Enable PCLK divider 1:16
@@ -367,23 +390,8 @@ void OV7670_set_size(void *platform, OV7670_size size) {
            {OV7670_REG_SCALING_PCLK_DIV, 0xF4},    // DSP 1:16 clock divider
            {OV7670_REG_SCALING_XSC, 0x40},         // 50% horizontal zoom
            {OV7670_REG_SCALING_YSC, 0x40},         // 50% vertical zoom
-           {OV7670_REG_SCALING_PCLK_DELAY, 2},
-#define VSTART2 8 // 18 before, seemed OK
-#define VSTOP2 (VSTART2 + 479)
-{OV7670_REG_VSTART, (VSTART2 >> 2) & 0xFF},
-{OV7670_REG_VSTOP, (VSTOP2 >> 2) & 0xFF},
-{OV7670_REG_VREF, ((VSTOP2 & 3) << 2) | (VSTART2 & 3)},
-#if 0
-// From OV explorer code:
-       {OV7670_REG_HSTART,0x13},
-       {OV7670_REG_HSTOP,0x01},
-       {OV7670_REG_HREF,0x4A},
-       {OV7670_REG_VSTART,0x02}, // 000 0001 0010 0x012 = 18
-       {OV7670_REG_VSTOP,0x7A},  // 0111 1010 001 0x3D1 = 977 ? (480 * 2)
-       {OV7670_REG_VREF,0x0A},   // 0000 1010
-// Nope, still gets bar on left (if HSTART=240)
-#endif
-
+// PCLK_DELAY is always 2, set that in main group
+// function values: 8, 252, 3
            {0xFF, 0xFF}},
       *res_settings[] = {set_div1, set_div2, set_div4, set_div8, set_div16};
 
