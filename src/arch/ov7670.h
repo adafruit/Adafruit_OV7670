@@ -272,8 +272,7 @@ extern "C" {
 // Architecture- and platform-neutral initialization function.
 // Called by the platform init function, this in turn may call an
 // architecture-specific init function.
-extern OV7670_status OV7670_begin(OV7670_host *host, OV7670_size size,
-                                  float fps);
+OV7670_status OV7670_begin(OV7670_host *host, OV7670_size size, float fps);
 
 // Configure camera frame rate. Actual resulting frame rate (returned) may
 // be different depending on available clock frequencies. Result will only
@@ -284,9 +283,16 @@ extern OV7670_status OV7670_begin(OV7670_host *host, OV7670_size size,
 // constraints (e.g. screen) and rounding up to a closer-but-higher frame
 // rate would be problematic). There is no hardcoded set of fixed frame
 // rates because it varies with architecture, depending on OV7670_XCLK_HZ.
-extern float OV7670_set_fps(void *platform, float fps);
+float OV7670_set_fps(void *platform, float fps);
 
-extern void OV7670_set_size(void *platform, OV7670_size size);
+// Configure camera resolution to one of the supported frame sizes
+// (powers-of-two divisions of VGA -- 640x480 down to 40x30).
+void OV7670_set_size(void *platform, OV7670_size size);
+
+// Lower-level resolution register fiddling function, exposed so dev code
+// can test variations for OV7670_set_size() windowing defaults.
+void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
+                          uint16_t hstart, uint8_t edge_offset, uint8_t delay);
 
 #ifdef __cplusplus
 };

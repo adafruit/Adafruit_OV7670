@@ -58,7 +58,7 @@ public:
                    value be used.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
-  OV7670_status begin(OV7670_size size=OV7670_SIZE_DIV4, float fps=30.0);
+  OV7670_status begin(OV7670_size size = OV7670_SIZE_DIV4, float fps = 30.0);
 
   /*!
     @brief   Reads value of one register from the OV7670 camera over I2C.
@@ -119,15 +119,15 @@ public:
   void capture(void);
 
 private:
-  OV7670_status arch_begin(OV7670_size size, float fps); // Arch periph setup
-  TwoWire *wire;                  ///< I2C interface
-  uint16_t *buffer;               ///< Camera buffer allocated by lib
-  OV7670_pins pins;               ///< Camera physical connections
-  OV7670_arch arch;               ///< Architecture-specific peripheral info
-  uint16_t _width;                ///< Current settings width in pixels
-  uint16_t _height;               ///< Current settings height in pixels
-  const uint8_t i2c_address;      ///< I2C address
-  const bool arch_defaults;       ///< If set, ignore arch struct, use defaults
+  OV7670_status arch_begin(OV7670_size size, float fps);
+  TwoWire *wire;             ///< I2C interface
+  uint16_t *buffer;          ///< Camera buffer allocated by lib
+  OV7670_pins pins;          ///< Camera physical connections
+  OV7670_arch arch;          ///< Architecture-specific peripheral info
+  uint16_t _width;           ///< Current settings width in pixels
+  uint16_t _height;          ///< Current settings height in pixels
+  const uint8_t i2c_address; ///< I2C address
+  const bool arch_defaults;  ///< If set, ignore arch struct, use defaults
 };
 
 // C-ACCESSIBLE FUNCTIONS --------------------------------------------------

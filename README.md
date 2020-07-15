@@ -92,3 +92,27 @@ Finer details are in comments peppered throughout the source.
 The Arduino library and examples make use of an architecture-specific "arch"
 structure. This is kind of gross, but after much deliberation it seemed just
 slightly less gross than the alternative. There's some notes in the .cpp.
+
+## OV7670 notes
+
+The library currently provides five resolution settings from full VGA
+(640x480 pixels, RAM permitting, which it isn't), and powers-of-two
+divisions of this, down to 1:16 (40x30 pixels).
+
+An intentional choice was made to ignore the camera's CIF resolution options
+for the sake of getting things done. CIF is an antiquated throwback to
+analog PAL video and doesn't really get us much, being just slightly larger
+than the nearest corresponding VGA division.
+
+IN THEORY the camera can provide nearly any resolution from CIF down to
+40x30, with independent scaling on each axis. In practice this has proven
+difficult to implement, as it's not well explained in documentation or
+example code. Maybe this will be revisited in the future if it's needed,
+at which point CIF (and any other resolution) will happen implicitly.
+But for now, just the VGA powers-of-two.
+
+At the smallest size (40x30), there are artifacts in the first row and
+column that I've not been able to eliminate. Any software using this
+setting should try to mask out or otherwise ignore those pixels.
+
+Additionally, only RGB565 color is currently supported.

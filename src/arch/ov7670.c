@@ -45,36 +45,6 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_COM15, OV7670_COM15_RGB565 | OV7670_COM15_R00FF},
     {OV7670_REG_TSLB, OV7670_TSLB_YLAST},    // No auto window
     {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // -VSYNC (req by SAMD51 PCC)
-    {OV7670_REG_SCALING_PCLK_DELAY, 2},
-
-#if 1
-    // My old numbers (from prior lib):
-    // These work acceptably at 320x240
-    {OV7670_REG_HSTART, 0x16}, // 0001 0110
-    {OV7670_REG_HSTOP, 0x04},  // 0000 0100
-    {OV7670_REG_HREF, 0x80},   // 0000 1000
-    {OV7670_REG_VSTART, 0x03}, // 0000 0011
-    {OV7670_REG_VSTOP, 0x7B},  // 0111 1011
-    {OV7670_REG_VREF, 0x08},   // 0000 1000
-//000 1010 0001 0xA1 = 161 start
-//000 0010 0000 0x20 = 32
-//161 + 640 = 801
-//801 % 784 = 17
-
-
-// VGA scan line takes 784 PCLKs (640 + 144 between lines)
-//HSTOP = (HSTART + 640) % 784
-
-#endif
-#if 0
-    // from Arduino lib (from Linux):
-    {OV7670_REG_HSTART, 0x13},
-    {OV7670_REG_HSTOP, 0x01},
-    {OV7670_REG_HREF, 0xB6},
-    {OV7670_REG_VSTART, 0x02},
-    {OV7670_REG_VSTOP, 0x7A},
-    {OV7670_REG_VREF, 0x0A},
-#endif
 
     {OV7670_REG_SLOP, 0x20},
     {OV7670_REG_GAM_BASE, 0x1C},
@@ -212,9 +182,9 @@ OV7670_status OV7670_begin(OV7670_host *host, OV7670_size size, float fps) {
   }
   OV7670_delay_ms(1); // Datasheet: tS:RESET = 1 ms
 
-  (void)OV7670_set_fps(host->platform, fps);         // Timing
-  OV7670_write_list(host->platform, OV7670_init);    // Other config
-  OV7670_set_size(host->platform, size);             // Frame size
+  (void)OV7670_set_fps(host->platform, fps);      // Timing
+  OV7670_write_list(host->platform, OV7670_init); // Other config
+  OV7670_set_size(host->platform, size);          // Frame size
 
   OV7670_delay_ms(300); // tS:REG = 300 ms (settling time = 10 frames)
 }
@@ -245,7 +215,7 @@ float OV7670_set_fps(void *platform, float fps) {
   float pclk_target = fps * 4000000.0 / 5.0; // Ideal PCLK Hz for target FPS
   uint32_t pclk_min = OV7670_XCLK_HZ / 32;   // Min PCLK determines min FPS
   if (pclk_target < (float)pclk_min) {       // If PCLK target is below limit
-    if(platform) {
+    if (platform) {
       OV7670_write_register(platform, OV7670_REG_DBLV, 0);   // 1:1 PLL
       OV7670_write_register(platform, OV7670_REG_CLKRC, 31); // 1/32 div
     }
@@ -282,7 +252,7 @@ float OV7670_set_fps(void *platform, float fps) {
     }
   }
 
-  if(platform) {
+  if (platform) {
     // Set up DBLV and CLKRC registers with best PLL and div values
     if (pll_ratio[best_pll] == best_div) { // If PLL and div are same (1:1)
       // Bypass PLL, use external clock directly
@@ -298,110 +268,71 @@ float OV7670_set_fps(void *platform, float fps) {
   return fps - best_delta; // Return actual frame rate
 }
 
-// Initial support will just be VGA powers-of-two sizing
-// CIF is garbage
+// Sets up PCLK dividers and sets H/V start/stop window. Rather than
+// rolling this into OV7670_set_size(), it's kept separate so test code
+// can experiment with different settings to find ideal defaults.
+void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
+                          uint16_t hstart, uint8_t edge_offset, uint8_t delay) {
+  uint8_t value;
 
-void OV7670_hv(void *platform, uint16_t vstart, uint16_t hstart,
-  uint8_t edge_offset) {
-  uint16_t vstop = vstart + 479;
-  uint16_t hstop = (hstart + 640) % 768;
-  OV7670_write_register(platform, OV7670_REG_HSTART, (hstart >> 3) & 0xFF);
-  OV7670_write_register(platform, OV7670_REG_HSTOP, (hstop >> 3) & 0xFF);
+  // Enable downsampling if sub-VGA, and zoom if 1:16 scale
+  value = (size > OV7670_SIZE_DIV1) ? OV7670_COM3_DCWEN : 0;
+  if (size == OV7670_SIZE_DIV16)
+    value |= OV7670_COM3_SCALEEN;
+  OV7670_write_register(platform, OV7670_REG_COM3, value);
+
+  // Enable PCLK division if sub-VGA 2,4,8,16 = 0x19,1A,1B,1C
+  value = (size > OV7670_SIZE_DIV1) ? (0x18 + size) : 0;
+  OV7670_write_register(platform, OV7670_REG_COM14, value);
+
+  // Horiz/vert downsample ratio, 1:8 max (H,V are always equal for now)
+  value = (size <= OV7670_SIZE_DIV8) ? size : OV7670_SIZE_DIV8;
+  OV7670_write_register(platform, OV7670_REG_SCALING_DCWCTR, value * 0x11);
+
+  // Pixel clock divider if sub-VGA
+  value = (size > OV7670_SIZE_DIV1) ? (0xF0 + size) : 0x08;
+  OV7670_write_register(platform, OV7670_REG_SCALING_PCLK_DIV, value);
+
+  // Apply 0.5 digital zoom at 1:16 size (others are downsample only)
+  value = (size == OV7670_SIZE_DIV16) ? 0x40 : 0x20; // 0.5, 1.0
+  OV7670_write_register(platform, OV7670_REG_SCALING_XSC, value);
+  OV7670_write_register(platform, OV7670_REG_SCALING_YSC, value);
+
+  // Window size is scattered across multiple registers.
+  // Horiz/vert stops can be automatically calc'd from starts.
+  uint16_t vstop = vstart + 480;
+  uint16_t hstop = (hstart + 640) % 784;
+  OV7670_write_register(platform, OV7670_REG_HSTART, hstart >> 3);
+  OV7670_write_register(platform, OV7670_REG_HSTOP, hstop >> 3);
   OV7670_write_register(platform, OV7670_REG_HREF,
-    (edge_offset << 6) | ((hstop & 7) << 3) | (hstart & 7));
-  OV7670_write_register(platform, OV7670_REG_VSTART, (vstart >> 2) & 0xFF);
-  OV7670_write_register(platform, OV7670_REG_VSTOP, (vstop >> 2) & 0xFF);
+                        (edge_offset << 6) | ((hstop & 0b111) << 3) |
+                            (hstart & 0b111));
+  OV7670_write_register(platform, OV7670_REG_VSTART, vstart >> 2);
+  OV7670_write_register(platform, OV7670_REG_VSTOP, vstop >> 2);
   OV7670_write_register(platform, OV7670_REG_VREF,
-    ((vstop & 3) << 2) | (vstart & 3));
+                        ((vstop & 0b11) << 2) | (vstart & 0b11));
+
+  OV7670_write_register(platform, OV7670_REG_SCALING_PCLK_DELAY, delay);
 }
 
-
 void OV7670_set_size(void *platform, OV7670_size size) {
-
-  // Wait, zoom stuff can go in here too. One struct to hold them all.
+  // Array of five window settings, index of each (0-4) aligns with the five
+  // OV7670_size enumeration values. If enum changes, list must change!
   static struct {
     uint8_t vstart;
     uint8_t hstart;
     uint8_t edge_offset;
+    uint8_t pclk_delay;
   } window[] = {
+      {9, 162, 2, 2},  // SIZE_DIV1  640x480 VGA
+      {10, 174, 4, 2}, // SIZE_DIV2  320x240 QVGA
+      {11, 186, 2, 2}, // SIZE_DIV4  160x120 QQVGA
+      {12, 210, 0, 2}, // SIZE_DIV8  80x60   ...
+      {15, 252, 3, 2}, // SIZE_DIV16 40x30
   };
 
-  // Array of five command lists, index of each (0-4) aligns with the five
-  // OV7670_size enumeration values. If enum changes, list must change!
-  static const OV7670_command
-      set_div1[] = {                            // VGA 640x480
-           {OV7670_REG_COM3, 0x00},             // No downsampling or zoom
-           {OV7670_REG_COM14, 0x00},            // Normal PCLK, no divider
-           {OV7670_REG_SCALING_DCWCTR, 0x00},   // No vert/horiz downsampling
-           {OV7670_REG_SCALING_PCLK_DIV, 0x08}, // Bypass DSP clock divider
-           {OV7670_REG_SCALING_XSC, 0x20},      // X zoom = 1.0
-           {OV7670_REG_SCALING_YSC, 0x20},      // Y zoom = 1.0
-           {0xFF, 0xFF}},
-      set_div2[] = {                             // QVGA 320x240
-// 0x19, 0x11, 0xF1
-// HSTART = 174
-           {OV7670_REG_COM3, OV7670_COM3_DCWEN}, // Enable downsampling
-           {OV7670_REG_COM14, 0x19},             // Enable PCLK 1:2
-           {OV7670_REG_SCALING_DCWCTR, 0x11},    // Vert+horiz 1:2 downsample
-           {OV7670_REG_SCALING_PCLK_DIV, 0xF1},  // DSP 1:2 clock divider
-           {OV7670_REG_SCALING_XSC, 0x20},       // X zoom = 1.0
-           {OV7670_REG_SCALING_YSC, 0x20},       // Y zoom = 1.0
-           {0xFF, 0xFF}},
-      set_div4[] = {                             // QQVGA 160x120
-// 0x1A, 0x22, 0xF2
-// HSTART = 184
-           {OV7670_REG_COM3, OV7670_COM3_DCWEN}, // Enable downsampling
-           {OV7670_REG_COM14, 0x1A},             // Enable PCLK divider 1:4
-           {OV7670_REG_SCALING_DCWCTR, 0x22},      // Vert/horiz 1:4 downsample
-           {OV7670_REG_SCALING_PCLK_DIV, 0xF2},    // DSP 1:4 clock divider
-           {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
-           {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
-#define HSTART 184
-#define HSTOP ((HSTART + 640) % 784)
-#define VSTART 15
-#define VSTOP (VSTART + 480)
-// In example code, vstart & stop make sense, always 480 apart.
-// hstart/stop are just weird though.
-{OV7670_REG_HSTART, (HSTART >> 3) & 0xFF},
-{OV7670_REG_HSTOP, (HSTOP >> 3) & 0xFF},
-{OV7670_REG_HREF, 0x80 | ((HSTOP & 7) << 3) | (HSTART & 7)},
-{OV7670_REG_VSTART, (VSTART >> 2) & 0xFF},
-{OV7670_REG_VSTOP, (VSTOP >> 2) & 0xFF},
-{OV7670_REG_VREF, ((VSTOP & 3) << 2) | (VSTART & 3)},
-           {0xFF, 0xFF}},
-      set_div8[] = {                               // 80x60
-// 0x1B, 0x33, 0xF3
-// HSTART = 210
-           {OV7670_REG_COM3, OV7670_COM3_DCWEN},   // Enable downsampling
-           {OV7670_REG_COM14, 0x1B},               // Enable PCLK divider 1:8
-           {OV7670_REG_SCALING_DCWCTR, 0x33},      // Vert/horiz 1:8 downsample
-           {OV7670_REG_SCALING_PCLK_DIV, 0xF3},    // DSP 1:8 clock divider
-           {OV7670_REG_SCALING_XSC, 0x20},         // X zoom = 1.0
-           {OV7670_REG_SCALING_YSC, 0x20},         // Y zoom = 1.0
-           {0xFF, 0xFF}},
-      set_div16[] = {                              // 40x30
-// Not working yet
-// HSTART = 240? w/PCLK_DELAY of 2, but has bar on left
-// OR in 0xC0 to HREF, bar still present but less so, use delay of 252
-           {OV7670_REG_COM3,
-            OV7670_COM3_SCALEEN | OV7670_COM3_DCWEN}, // Use DSP
-           {OV7670_REG_COM14, 0x1C},               // Enable PCLK divider 1:16
-           {OV7670_REG_SCALING_DCWCTR, 0x33},      // Vert/horiz 1:8 downsample
-           {OV7670_REG_SCALING_PCLK_DIV, 0xF4},    // DSP 1:16 clock divider
-           {OV7670_REG_SCALING_XSC, 0x40},         // 50% horizontal zoom
-           {OV7670_REG_SCALING_YSC, 0x40},         // 50% vertical zoom
-// PCLK_DELAY is always 2, set that in main group
-// function values: 8, 252, 3
-           {0xFF, 0xFF}},
-      *res_settings[] = {set_div1, set_div2, set_div4, set_div8, set_div16};
-
-  OV7670_command *foo = res_settings[size];
-  char buffer[100];
-  for (int i = 0; i < 5; i++) {
-    sprintf(buffer, "%02x %02x\n", foo[i].reg, foo[i].value);
-    OV7670_print(buffer);
-  }
-  OV7670_write_list(platform, res_settings[size]);
+  OV7670_frame_control(platform, size, window[size].vstart, window[size].hstart,
+                       window[size].edge_offset, window[size].pclk_delay);
 }
 
 #if 0
@@ -567,7 +498,5 @@ downsampling and digital zoom. But I think just the downsample
 factor is enough to identify what's needed for the DIV, right?
 
 Currently at 160, I'm right at the limit where either 2 or 4 works.
-
-Supported frame rates in Arduino lib are 1, 5, 10, 15 and 30
 
 #endif // 0
