@@ -46,13 +46,13 @@ static const OV7670_command
             {OV7670_REG_RGB444, 0},
             {OV7670_REG_COM15, OV7670_COM15_RGB565 | OV7670_COM15_R00FF},
             {0xFF, 0xFF}},
-      OV7670_yuv[] =
+    OV7670_yuv[] =
         {
             // Manual output format, YUV, use full output range
             {OV7670_REG_COM7, OV7670_COM7_YUV},
             {OV7670_REG_COM15, OV7670_COM15_R00FF},
-            {0xFF, 0xFF} },
-      OV7670_init[] = {
+            {0xFF, 0xFF}},
+    OV7670_init[] = {
         {OV7670_REG_TSLB, OV7670_TSLB_YLAST},    // No auto window
         {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // -VSYNC (req by SAMD PCC)
         {OV7670_REG_SLOP, 0x20},
