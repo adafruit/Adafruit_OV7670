@@ -51,7 +51,7 @@ void Adafruit_OV7670::resume(void) {
 }
 
 OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace mode,
-  OV7670_size size, float fps) {
+                                          OV7670_size size, float fps) {
 
   // BASE INITIALIZATION (PLATFORM-AGNOSTIC) -------------------------------
   // This calls the device-neutral C init function OV7670_begin(), which in
