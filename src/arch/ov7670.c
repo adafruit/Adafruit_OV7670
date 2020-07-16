@@ -26,7 +26,7 @@ extern void OV7670_write_register(void *platform, uint8_t reg, uint8_t value);
 // I2C calls).
 void OV7670_write_list(void *platform, OV7670_command *cmd) {
   for (int i = 0; cmd[i].reg <= OV7670_REG_LAST; i++) {
-#if 0
+#if 0 // DEBUG
     char buf[50];
     sprintf(buf, "Write reg %02X = %02X\n", cmd[i].reg, cmd[i].value);
     OV7670_print(buf);
@@ -38,14 +38,21 @@ void OV7670_write_list(void *platform, OV7670_command *cmd) {
 
 // CAMERA STARTUP ----------------------------------------------------------
 
-static const OV7670_command OV7670_init[] = {
+static const OV7670_command
+  OV7670_rgb[] = {
     // Manual output format, RGB, use RGB565 and full 0-255 output range
     {OV7670_REG_COM7, OV7670_COM7_RGB},
     {OV7670_REG_RGB444, 0},
     {OV7670_REG_COM15, OV7670_COM15_RGB565 | OV7670_COM15_R00FF},
+    {0xFF, 0xFF} },
+  OV7670_yuv[] = {
+    // Manual output format, YUV, use full output range
+    {OV7670_REG_COM7, OV7670_COM7_YUV},
+    {OV7670_REG_COM15, OV7670_COM15_R00FF},
+    {0xFF, 0xFF} },
+  OV7670_init[] = {
     {OV7670_REG_TSLB, OV7670_TSLB_YLAST},    // No auto window
     {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // -VSYNC (req by SAMD51 PCC)
-
     {OV7670_REG_SLOP, 0x20},
     {OV7670_REG_GAM_BASE, 0x1C},
     {OV7670_REG_GAM_BASE + 1, 0x28},
@@ -147,7 +154,8 @@ static const OV7670_command OV7670_init[] = {
     {OV7670_REG_LAST + 1, 0x00},       // End-of-data marker
 };
 
-OV7670_status OV7670_begin(OV7670_host *host, OV7670_size size, float fps) {
+OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace mode,
+  OV7670_size size, float fps) {
   OV7670_status status;
 
   // I2C must already be set up and running (@ 100 KHz) in calling code
@@ -183,6 +191,11 @@ OV7670_status OV7670_begin(OV7670_host *host, OV7670_size size, float fps) {
   OV7670_delay_ms(1); // Datasheet: tS:RESET = 1 ms
 
   (void)OV7670_set_fps(host->platform, fps);      // Timing
+  if(mode == OV7670_COLOR_RGB) {
+    OV7670_write_list(host->platform, OV7670_rgb);
+  } else {
+    OV7670_write_list(host->platform, OV7670_yuv);
+  }
   OV7670_write_list(host->platform, OV7670_init); // Other config
   OV7670_set_size(host->platform, size);          // Frame size
 
@@ -324,6 +337,8 @@ void OV7670_set_size(void *platform, OV7670_size size) {
     uint8_t edge_offset;
     uint8_t pclk_delay;
   } window[] = {
+      // Window settings were tediously determined empirically.
+      // I hope there's a formula for this, if a do-over is needed.
       {9, 162, 2, 2},  // SIZE_DIV1  640x480 VGA
       {10, 174, 4, 2}, // SIZE_DIV2  320x240 QVGA
       {11, 186, 2, 2}, // SIZE_DIV4  160x120 QQVGA

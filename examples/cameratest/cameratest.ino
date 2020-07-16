@@ -29,7 +29,7 @@ SPIBrute brute(&TFT_SPI);
 #endif
 
 Adafruit_OV7670 cam(OV7670_ADDR, &pins, &Wire1, &arch);
-
+#define CAM_MODE OV7670_COLOR_RGB
 #define CAM_SIZE OV7670_SIZE_DIV4
 
 void setup() {
@@ -43,7 +43,7 @@ void setup() {
 
   // Once started, the camera continually fills a frame buffer
   // automagically; no need to request a frame.
-  OV7670_status status = cam.begin(CAM_SIZE, 30.0);
+  OV7670_status status = cam.begin(CAM_MODE, CAM_SIZE, 30.0);
   if (status != OV7670_STATUS_OK) {
     Serial.println("Camera begin() fail");
     Serial.flush();
@@ -104,6 +104,16 @@ void loop() {
 
   // Pause the camera DMA - hold buffer steady to avoid tearing
   cam.suspend();
+
+  if(CAM_MODE == OV7670_COLOR_YUV) {
+    // Convert YUV gray component to RGB565 for TFT display
+    uint16_t *ptr = cam.getBuffer();
+    for(uint32_t i=cam.width() * cam.height(); i; i--) {
+      uint8_t y = *ptr & 0xFF; // Y (brightness) component of YUV
+      uint16_t rgb = ((y >> 3) * 0x801) | ((y & 0xFC) << 3); // RGB565
+      *ptr++ = __builtin_bswap16(rgb); // Big-endianify rgb
+    }
+  }
 
 //    cam.capture(); // Manual capture instead of PCC DMA
 

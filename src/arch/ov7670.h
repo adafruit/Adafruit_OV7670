@@ -27,6 +27,12 @@ typedef enum {
   OV7670_STATUS_ERR_PERIPHERAL, ///< Peripheral (e.g. timer) not found
 } OV7670_status;
 
+/** Supported color formats */
+typedef enum {
+  OV7670_COLOR_RGB = 0, ///< RGB565 big-endian
+  OV7670_COLOR_YUV,     ///< YUV/YCbCr 4:2:2
+} OV7670_colorspace;
+
 /** Supported sizes (VGA division factor) for OV7670_set_size() */
 typedef enum {
   OV7670_SIZE_DIV1 = 0, ///< 640 x 480
@@ -272,7 +278,8 @@ extern "C" {
 // Architecture- and platform-neutral initialization function.
 // Called by the platform init function, this in turn may call an
 // architecture-specific init function.
-OV7670_status OV7670_begin(OV7670_host *host, OV7670_size size, float fps);
+OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace mode,
+  OV7670_size size, float fps);
 
 // Configure camera frame rate. Actual resulting frame rate (returned) may
 // be different depending on available clock frequencies. Result will only

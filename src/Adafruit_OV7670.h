@@ -45,6 +45,7 @@ public:
   /*!
     @brief   Allocate and initialize resources behind an Adafruit_OV7670
              instance.
+    @param   mode  Colorspace. OV7670_COLOR_RGB or OV7670_COLOR_YUV.
     @param   size  Frame size as a power-of-two reduction of VGA resolution.
                    Available sizes are OV7670_SIZE_DIV1 (640x480),
                    OV7670_SIZE_DIV2 (320x240), OV7670_SIZE_DIV4 (160x120),
@@ -58,7 +59,8 @@ public:
                    value be used.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
-  OV7670_status begin(OV7670_size size = OV7670_SIZE_DIV4, float fps = 30.0);
+  OV7670_status begin(OV7670_colorspace mode = OV7670_COLOR_RGB,
+                      OV7670_size size = OV7670_SIZE_DIV4, float fps = 30.0);
 
   /*!
     @brief   Reads value of one register from the OV7670 camera over I2C.
@@ -119,7 +121,7 @@ public:
   void capture(void);
 
 private:
-  OV7670_status arch_begin(OV7670_size size, float fps);
+  OV7670_status arch_begin(OV7670_colorspace mode, OV7670_size size, float fps);
   TwoWire *wire;             ///< I2C interface
   uint16_t *buffer;          ///< Camera buffer allocated by lib
   OV7670_pins pins;          ///< Camera physical connections
