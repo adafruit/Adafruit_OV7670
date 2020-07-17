@@ -1,26 +1,3 @@
-/*
-TEMPORARY NOTES:
-
-Add initial resolution to begin() function.
-
-  // Add options for resolution, mirror X/Y, maybe color bars, maybe endianism,
-  // maybe negative, maybe night mode
-  // CIF = 352 x 288
-  // QVGA = 320 x 240
-  // QCIF = 176 x 144
-  // 2, 4 and 8x downsampling are available on both X & Y
-  // Should PCC pins be passed to constructor?
-  // Should all the constructor args go into a struct?
-  // Should RAM be reallocated on resolution change, or alloc once at max?
-  // 352x288x2 = 202752 bytes
-  // 320x240x2 = 153600 bytes
-  // Should probably realloc because 200K is excessive (have 256K on SAMD51),
-  // don't want to use all that RAM if it's not needed.
-  // In that case, should camera start up at least resolution?
-  // That'd be QCIF w/8x downsample: 22 x 18 pixels = 792 bytes
-
-*/
-
 /*!
  * @file Adafruit_OV7670.cpp
  *
@@ -77,20 +54,21 @@ Adafruit_OV7670::~Adafruit_OV7670() {
 
 // CAMERA INIT AND CONFIG FUNCTIONS ----------------------------------------
 
-OV7670_status Adafruit_OV7670::begin(void) {
+OV7670_status Adafruit_OV7670::begin(OV7670_colorspace mode, OV7670_size size,
+                                     float fps) {
 
   wire->begin();
   wire->setClock(100000); // Datasheet claims 400 KHz, but no, use 100 KHz
 
-  _width = 320;
-  _height = 240;
+  _width = 640 >> (int)size;  // 640, 320, 160, 80, 40
+  _height = 480 >> (int)size; // 480, 240, 120, 60, 30
 
   // Alloc buffer for camera
   buffer = (uint16_t *)malloc(_width * _height * sizeof(uint16_t));
   if (buffer == NULL)
     return OV7670_STATUS_ERR_MALLOC;
 
-  arch_begin(); // Device-specific setup
+  arch_begin(mode, size, fps); // Device-specific setup
 }
 
 int Adafruit_OV7670::readRegister(uint8_t reg) {
@@ -108,13 +86,8 @@ void Adafruit_OV7670::writeRegister(uint8_t reg, uint8_t value) {
   wire->endTransmission();
 }
 
-bool Adafruit_OV7670::setResolution(OV7670_size size, OV7670_downsample x,
-                                    OV7670_downsample y) {
+bool Adafruit_OV7670::setSize(OV7670_size size) {
   return true; // TO DO: make this realloc buf & return status
-}
-
-bool Adafruit_OV7670::setResolution(OV7670_size size, OV7670_downsample d) {
-  return setResolution(size, d, d); // Call X/Y sizer w/same value for both
 }
 
 // C-ACCESSIBLE FUNCTIONS --------------------------------------------------

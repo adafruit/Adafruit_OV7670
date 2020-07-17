@@ -19,22 +19,6 @@
 #include <Adafruit_ZeroDMA.h>
 #include <Wire.h>
 
-/** OV7670 camera resolutions. */
-enum OV7670_size {
-  OV7670_SIZE_VGA = 0, ///< 640 x 480
-  OV7670_SIZE_CIF,     ///< 352 x 288
-  OV7670_SIZE_QVGA,    ///< 320 x 240
-  OV7670_SIZE_QCIF,    ///< 176 x 144
-};
-
-/** OV7670 camera downsampling options. */
-enum OV7670_downsample {
-  OV7670_DOWNSAMPLE_1 = 0, ///< 1:1 (no downsampling, full resolution)
-  OV7670_DOWNSAMPLE_2,     ///< 1:2 downsampling
-  OV7670_DOWNSAMPLE_4,     ///< 1:4 downsampling
-  OV7670_DOWNSAMPLE_8,     ///< 1:8 downsampling
-};
-
 /*!
     @brief  Class encapsulating OV7670 camera functionality.
 */
@@ -61,9 +45,26 @@ public:
   /*!
     @brief   Allocate and initialize resources behind an Adafruit_OV7670
              instance.
+    @param   mode  Colorspace. OV7670_COLOR_RGB or OV7670_COLOR_YUV.
+    @param   size  Frame size as a power-of-two reduction of VGA resolution.
+                   Available sizes are OV7670_SIZE_DIV1 (640x480),
+                   OV7670_SIZE_DIV2 (320x240), OV7670_SIZE_DIV4 (160x120),
+                   OV7670_SIZE_DIV8 and OV7670_SIZE_DIV16.
+    @param   fps   Desired capture framerate, in frames per second, as a
+                   float up to 30.0. Actual device frame rate may vary from
+                   this, depending on a host's available PWM timing.
+                   Generally, the actual device fps will be equal or
+                   nearest-available below the requested rate, only in
+                   rare cases of extremely low frame rates will a higher
+                   value be used. Since begin() only returns a status code,
+                   if you need to know the actual framerate you can call
+                   OV7670_set_fps(NULL, fps) at any time before or after
+                   begin() and that will return the actual resulting frame
+                   rate as a float.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
-  OV7670_status begin(void);
+  OV7670_status begin(OV7670_colorspace mode = OV7670_COLOR_RGB,
+                      OV7670_size size = OV7670_SIZE_DIV4, float fps = 30.0);
 
   /*!
     @brief   Reads value of one register from the OV7670 camera over I2C.
@@ -88,12 +89,17 @@ public:
   uint16_t *getBuffer(void) { return buffer; }
 
   /*!
-    @brief  Pause camera before capturing, to avoid tearing.
+    @brief  Pause DMA background capture (if supported by architecture)
+            before capturing, to avoid tearing. Returns as soon as the
+            current frame has finished loading. If DMA background capture
+            is not supported, this function has no effect. This is NOT a
+            camera sleep function!
   */
   void suspend(void);
 
   /*!
-    @brief  Resume camera after suspend/capture.
+    @brief  Resume DMA background capture after suspend. If DMA is not
+            supported, this function has no effect.
   */
   void resume(void);
 
@@ -110,39 +116,30 @@ public:
   uint16_t height(void) { return _height; }
 
   /*!
-    @brief   This will change.
-    @param   size  One of the size settings from ov7670.h.
-    @param   x     Horizontal scaling.
-    @param   y     Vertical scaling.
+    @brief   Change camera resolution post-begin(). Not yet implemented.
+    @param   size  One of the OV7670_size values ranging from full VGA
+                   (640x480 pixels) to 1/16 VGA (40x30 pixels).
     @return  true on success (image buffer reallocated, camera configured),
              false on error (usu. malloc).
   */
-  bool setResolution(OV7670_size size, OV7670_downsample x,
-                     OV7670_downsample y);
-  /*!
-    @brief   Ditto.
-    @param   size  One of the size settings from ov7670.h.
-    @param   d     Scaling factor (both horizontal and vertical).
-    @return  true on success (image buffer reallocated, camera configured),
-             false on error (usu. malloc).
-  */
-  bool setResolution(OV7670_size size, OV7670_downsample d);
+  bool setSize(OV7670_size size);
 
   /*!
-    @brief  Capture still to buffer.
+    @brief  Capture still image to buffer. If background DMA capture is
+            supported, this has no effect; latest image is always there.
   */
   void capture(void);
 
 private:
-  OV7670_status arch_begin(void); ///< Architecture-specific periph setup
-  TwoWire *wire;                  ///< I2C interface
-  uint16_t *buffer;               ///< Camera buffer allocated by lib
-  OV7670_pins pins;               ///< Camera physical connections
-  OV7670_arch arch;               ///< Architecture-specific peripheral info
-  uint16_t _width;                ///< Current settings width in pixels
-  uint16_t _height;               ///< Current settings height in pixels
-  const uint8_t i2c_address;      ///< I2C address
-  const bool arch_defaults;       ///< If set, ignore arch struct, use defaults
+  OV7670_status arch_begin(OV7670_colorspace mode, OV7670_size size, float fps);
+  TwoWire *wire;             ///< I2C interface
+  uint16_t *buffer;          ///< Camera buffer allocated by lib
+  OV7670_pins pins;          ///< Camera physical connections
+  OV7670_arch arch;          ///< Architecture-specific peripheral info
+  uint16_t _width;           ///< Current settings width in pixels
+  uint16_t _height;          ///< Current settings height in pixels
+  const uint8_t i2c_address; ///< I2C address
+  const bool arch_defaults;  ///< If set, ignore arch struct, use defaults
 };
 
 // C-ACCESSIBLE FUNCTIONS --------------------------------------------------

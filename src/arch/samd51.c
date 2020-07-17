@@ -18,14 +18,6 @@
 #include "wiring_private.h" // pinPeripheral() function
 #endif
 
-// OV7670 datasheet claims 10-48 MHz clock input, with 24 MHz typical.
-// SAMD can do up to 24 MHz if camera connection is super clean. If any
-// trouble, try dialing this down to 16 or 12 MHz. Even 8 MHz is OK if
-// that's what's available. SAMD timer peripheral as used by this code
-// is clocked from a 48 MHz source, so it's always going to be some
-// integer divisor of that.
-#define XCLK_HZ 24000000 ///< XCLK to camera, 8-24 MHz
-
 // Each supported architecture MUST provide this function with this name,
 // arguments and return type. It receives a pointer to a structure with
 // at least a list of pins, and usually additional device-specific data
@@ -140,7 +132,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
     while (tcc->SYNCBUSY.bit.WAVE)
       ;
 
-    uint16_t period = 48000000 / XCLK_HZ - 1;
+    uint16_t period = 48000000 / OV7670_XCLK_HZ - 1;
     tcc->PER.bit.PER = period;
     while (tcc->SYNCBUSY.bit.PER)
       ;
@@ -201,7 +193,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
 #endif
 
   // Accumulate 4 bytes into RHR register (two 16-bit pixels)
-  PCC->MR.reg = PCC_MR_CID(0x3) |   // Clear on falling DEN1 or DEN2
+  PCC->MR.reg = PCC_MR_CID(0x1) |   // Clear on falling DEN1 (VSYNC)
                 PCC_MR_ISIZE(0x0) | // Input data bus is 8 bits
                 PCC_MR_DSIZE(0x2);  // "4 data" at a time (accumulate in RHR)
 

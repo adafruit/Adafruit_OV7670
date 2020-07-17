@@ -29,19 +29,21 @@ SPIBrute brute(&TFT_SPI);
 #endif
 
 Adafruit_OV7670 cam(OV7670_ADDR, &pins, &Wire1, &arch);
+#define CAM_MODE OV7670_COLOR_RGB
+#define CAM_SIZE OV7670_SIZE_DIV4
 
 void setup() {
   pinMode(LED_BUILTIN, OUTPUT);
   digitalWrite(LED_BUILTIN, LOW);
 
   Serial.begin(9600);
-  // while (!Serial);
+   while (!Serial);
   Serial.println("Hello");
   Serial.flush();
 
   // Once started, the camera continually fills a frame buffer
   // automagically; no need to request a frame.
-  OV7670_status status = cam.begin();
+  OV7670_status status = cam.begin(CAM_MODE, CAM_SIZE, 30.0);
   if (status != OV7670_STATUS_OK) {
     Serial.println("Camera begin() fail");
     Serial.flush();
@@ -74,6 +76,14 @@ uint32_t frame = 999; // Force 1st frame as keyframe
 void loop() {
   Serial.println("ping");
 
+  if(Serial.available()) {
+    uint32_t vstart = Serial.parseInt();
+    uint32_t hstart = Serial.parseInt();
+    uint32_t edge_offset = Serial.parseInt();
+    uint32_t pclk_delay = Serial.parseInt();
+    OV7670_frame_control((void *)&cam, CAM_SIZE, vstart, hstart, edge_offset, pclk_delay);
+  }
+
   // setAddrWindow() involves a lot of context switching that can
   // slow things down a bit, so we don't do it on every frame.
   // Instead, it's only set periodically, and we just keep writing
@@ -89,11 +99,21 @@ void loop() {
 #endif
     tft.endWrite();   // Close out prior transfer
     tft.startWrite(); // and start a fresh one (required)
-    tft.setAddrWindow(0, 0, 320, 240);
+    tft.setAddrWindow(0, 0, cam.width(), cam.height());
   }
 
   // Pause the camera DMA - hold buffer steady to avoid tearing
   cam.suspend();
+
+  if(CAM_MODE == OV7670_COLOR_YUV) {
+    // Convert YUV gray component to RGB565 for TFT display
+    uint16_t *ptr = cam.getBuffer();
+    for(uint32_t i=cam.width() * cam.height(); i; i--) {
+      uint8_t y = *ptr & 0xFF; // Y (brightness) component of YUV
+      uint16_t rgb = ((y >> 3) * 0x801) | ((y & 0xFC) << 3); // RGB565
+      *ptr++ = __builtin_bswap16(rgb); // Big-endianify rgb
+    }
+  }
 
 //    cam.capture(); // Manual capture instead of PCC DMA
 
@@ -103,12 +123,12 @@ void loop() {
 
 #if defined(USE_SPI_DMA)
   tft.dmaWait();
-  tft.writePixels(cam.getBuffer(), 320 * 240, false, true);
+  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
 #elif defined(USE_SPI_BRUTE)
   brute.wait();
-  brute.write((uint8_t *)cam.getBuffer(), 320 * 240 * 2);
+  brute.write((uint8_t *)cam.getBuffer(), cam.width() * cam.height() * 2);
 #else
-  tft.writePixels(cam.getBuffer(), 320 * 240, false, true);
+  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
 #endif
 
   cam.resume(); // Resume DMA to camera buffer
