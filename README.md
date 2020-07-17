@@ -3,6 +3,12 @@
 Arduino library for OV7670 cameras, built over a C foundation common to
 both Arduino and (later) CircuitPython.
 
+PLEASE NOTE: I'm setting this repository public since some folks had a
+specific need and wanted early access. It is ABSOLUTELY 100% GUARANTEED
+that there will be BREAKING CHANGES before this library is firmed up and
+considered "official," so don't get too comfortable with things being as
+they are.
+
 These notes are primarily to assist with porting to new devices and in
 creating a CircuitPython library from the lower-level code. For using the
 library, see the included Arduino example(s).
