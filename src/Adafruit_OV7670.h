@@ -56,7 +56,11 @@ public:
                    Generally, the actual device fps will be equal or
                    nearest-available below the requested rate, only in
                    rare cases of extremely low frame rates will a higher
-                   value be used.
+                   value be used. Since begin() only returns a status code,
+                   if you need to know the actual framerate you can call
+                   OV7670_set_fps(NULL, fps) at any time before or after
+                   begin() and that will return the actual resulting frame
+                   rate as a float.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
   OV7670_status begin(OV7670_colorspace mode = OV7670_COLOR_RGB,
@@ -85,12 +89,17 @@ public:
   uint16_t *getBuffer(void) { return buffer; }
 
   /*!
-    @brief  Pause camera before capturing, to avoid tearing.
+    @brief  Pause DMA background capture (if supported by architecture)
+            before capturing, to avoid tearing. Returns as soon as the
+            current frame has finished loading. If DMA background capture
+            is not supported, this function has no effect. This is NOT a
+            camera sleep function!
   */
   void suspend(void);
 
   /*!
-    @brief  Resume camera after suspend/capture.
+    @brief  Resume DMA background capture after suspend. If DMA is not
+            supported, this function has no effect.
   */
   void resume(void);
 
@@ -107,16 +116,17 @@ public:
   uint16_t height(void) { return _height; }
 
   /*!
-    @brief   This will change.
-    @param   width   Capture width in pixels.
-    @param   height  Capture height in pixels.
+    @brief   Change camera resolution post-begin(). Not yet implemented.
+    @param   size  One of the OV7670_size values ranging from full VGA
+                   (640x480 pixels) to 1/16 VGA (40x30 pixels).
     @return  true on success (image buffer reallocated, camera configured),
              false on error (usu. malloc).
   */
-  bool setResolution(uint16_t width, uint16_t height);
+  bool setSize(OV7670_size size);
 
   /*!
-    @brief  Capture still to buffer.
+    @brief  Capture still image to buffer. If background DMA capture is
+            supported, this has no effect; latest image is always there.
   */
   void capture(void);
 

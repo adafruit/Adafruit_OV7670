@@ -86,9 +86,7 @@ void Adafruit_OV7670::writeRegister(uint8_t reg, uint8_t value) {
   wire->endTransmission();
 }
 
-bool Adafruit_OV7670::setResolution(uint16_t width, uint16_t height) {
-  // Clip width & height here. Upper and lower limits!
-  // (do that in C code actually, return results here)
+bool Adafruit_OV7670::setSize(OV7670_size size) {
   return true; // TO DO: make this realloc buf & return status
 }
 

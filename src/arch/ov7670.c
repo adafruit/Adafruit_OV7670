@@ -351,4 +351,3 @@ void OV7670_set_size(void *platform, OV7670_size size) {
   OV7670_frame_control(platform, size, window[size].vstart, window[size].hstart,
                        window[size].edge_offset, window[size].pclk_delay);
 }
-
