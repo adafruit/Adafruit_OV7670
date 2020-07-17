@@ -1,26 +1,3 @@
-/*
-TEMPORARY NOTES:
-
-Add initial resolution to begin() function.
-
-  // Add options for resolution, mirror X/Y, maybe color bars, maybe endianism,
-  // maybe negative, maybe night mode
-  // CIF = 352 x 288
-  // QVGA = 320 x 240
-  // QCIF = 176 x 144
-  // 2, 4 and 8x downsampling are available on both X & Y
-  // Should PCC pins be passed to constructor?
-  // Should all the constructor args go into a struct?
-  // Should RAM be reallocated on resolution change, or alloc once at max?
-  // 352x288x2 = 202752 bytes
-  // 320x240x2 = 153600 bytes
-  // Should probably realloc because 200K is excessive (have 256K on SAMD51),
-  // don't want to use all that RAM if it's not needed.
-  // In that case, should camera start up at least resolution?
-  // That'd be QCIF w/8x downsample: 22 x 18 pixels = 792 bytes
-
-*/
-
 /*!
  * @file Adafruit_OV7670.cpp
  *

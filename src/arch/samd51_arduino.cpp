@@ -1,9 +1,23 @@
-// This is the SAMD51- and Arduino-specific parts of OV7670 camera
-// interfacing. Unlike the SAMD51-specific (but platform-agnostic) code
-// in samd51.c, this adds a DMA layer. Camera data is continually read
-// and then paused when needed, reducing capture latency (rather than
-// waiting for a VSYNC before starting a capture of the next frame,
-// VSYNC instead marks the end of the prior frame and data is ready).
+/*
+This is the SAMD51- and Arduino-specific parts of OV7670 camera interfacing.
+Unlike the SAMD51-specific (but platform-agnostic) code in samd51.c, this
+adds a DMA layer. Camera data is continually read and then paused when
+needed, reducing capture latency (rather than waiting for a VSYNC before
+starting a capture of the next frame, VSYNC instead marks the end of the
+prior frame and data is ready). Code for non-DMA use of the SAMD51 PCC
+exists in samd51.c, but isn't really used right now, unless we add a
+DMA/non-DMA compile- or run-time capability. It's all DMA for now.
+
+Each architecture will have a .cpp file like this, to tie into the other
+Arduino code up a level and provide a couple of missing functions there.
+An intentional choice was made NOT to make a subclass for each architecture,
+overloaded or virtual functions, etc. even if that might be more Proper
+Computer Science(tm). It avoids more per-arch ifdefs in the examples,
+avoids an extra .h file to accompany each per-arch .cpp, etc. Instead,
+arch-specific constructs are handled through the 'arch' struct which gets
+passed around, and needed by the middle-layer C code anyway. Just provide
+arch_begin() and capture() in each .cpp and call it done.
+*/
 
 #if defined(__SAMD51__) && defined(ARDUINO)
 #include "Adafruit_OV7670.h"
@@ -39,11 +53,15 @@ static void dmaCallback(Adafruit_ZeroDMA *dma) { frameReady = true; }
 // use static vars to indicate whether to trigger DMA transfers or hold off
 // (camera keeps running, data is simply ignored without a DMA transfer).
 
+// This is NOT a sleep function, it just pauses background DMA.
+
 void Adafruit_OV7670::suspend(void) {
   while (!frameReady)
     ;               // Wait for current frame to finish loading
   suspended = true; // Don't load next frame (camera runs, DMA stops)
 }
+
+// NOT a wake function, just resumes background DMA.
 
 void Adafruit_OV7670::resume(void) {
   frameReady = false;
@@ -56,6 +74,7 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace mode,
   // BASE INITIALIZATION (PLATFORM-AGNOSTIC) -------------------------------
   // This calls the device-neutral C init function OV7670_begin(), which in
   // turn calls the device-specific C init OV7670_arch_begin() in samd51.c.
+  // So many layers. It's like an ogre.
 
   OV7670_host host;
   host.arch = &arch; // Point to struct in Adafruit_OV7670 class
@@ -99,39 +118,14 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace mode,
   return status;
 }
 
-// Host-specific .cpp must provide this function with same name, arguments
-// and return type. Not a virtual function because it's not a subclass.
-// Though wondering now if it should be. But I don't like the idea of each
-// architecture requiring its own constructor name/call. Is that really
-// any worse than setting up the arch struct though?
-
-/*
-
-Okay decided: will stick with arch struct rather than subclasses.
-The middle-layer C code needs that struct to pass down to the arch-specific
-C code anyway. With per-device constructors, the Arduino sketches will
-need ifdefs anyway. Subclasses would mean a third place where per-device
-ifdefs would need to happen.
-
-Only arguments in favor of the subclass thing are
-- Can put the DMA and descriptor instances in the subclass, allowing
-multiple OV7670 instances. But since there's only one PCC anyway, there
-can be only one instance.
-Unless...having both PCC and bitbang instances present is an option.
-So basically, multiple cameras. I think that's all it comes down to.
-But we could do that with the arch structure anyway I think.
-
-Update: addition of the OV7670_pins struct means that all constructors
-could accept identical args now. Maybe that's more in the subclass' favor,
-
-Just keeping this function though, avoids having to make a separate .h
-file for each device. The .cpp is enough. It just has the missing funcs.
-
-*/
-
 void Adafruit_OV7670::capture(void) {
   volatile uint32_t *vsync_reg, *hsync_reg;
   uint32_t vsync_bit, hsync_bit;
+
+  // Note to future self: might add DMA pause-and-return-immediately
+  // into this function, so it's usable the same for both DMA and
+  // non-DMA situations. Calling code would still need to resume DMA
+  // when it's done with the data, wouldn't be completely transparent.
 
   vsync_reg = &PORT->Group[g_APinDescription[PIN_PCC_DEN1].ulPort].IN.reg;
   vsync_bit = 1ul << g_APinDescription[PIN_PCC_DEN1].ulPin;
