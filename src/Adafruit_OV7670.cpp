@@ -90,6 +90,10 @@ bool Adafruit_OV7670::setSize(OV7670_size size) {
   return true; // TO DO: make this realloc buf & return status
 }
 
+void Adafruit_OV7670::Y2RGB565(void) {
+  OV7670_Y2RGB565(buffer, _width * _height);
+}
+
 // C-ACCESSIBLE FUNCTIONS --------------------------------------------------
 
 // These functions are declared in an extern "C" block in Adafruit_OV7670.h

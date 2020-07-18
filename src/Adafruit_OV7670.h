@@ -130,6 +130,16 @@ public:
   */
   void capture(void);
 
+  /*!
+    @brief  Convert Y (brightness) component YUV image in RAM to RGB565
+            big-endian format for preview on TFT display. Camera buffer is
+            overwritten in-place, Y is truncated and UV elements are lost.
+            No practical use outside TFT preview. If you need actual
+            grayscale 0-255 data, just access the low byte of each 16-bit
+            YUV pixel.
+  */
+  void Y2RGB565(void);
+
 private:
   OV7670_status arch_begin(OV7670_colorspace mode, OV7670_size size, float fps);
   TwoWire *wire;             ///< I2C interface

@@ -301,6 +301,13 @@ void OV7670_set_size(void *platform, OV7670_size size);
 void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
                           uint16_t hstart, uint8_t edge_offset, uint8_t delay);
 
+// Convert Y (brightness) component YUV image in RAM to RGB565 big-
+// endian format for preview on TFT display. Data is overwritten in-place,
+// Y is truncated and UV elements are lost. No practical use outside TFT
+// preview. If you need actual grayscale 0-255 data, just access the low
+// byte of each 16-bit YUV pixel.
+void OV7670_Y2RGB565(uint16_t *ptr, uint32_t len);
+
 #ifdef __cplusplus
 };
 #endif
