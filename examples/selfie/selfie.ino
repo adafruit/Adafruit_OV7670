@@ -4,6 +4,10 @@ Grand Central PCC pins, it faces "up," same way as a TFT shield, so
 think of it as a selfie camera. Tap "A" button to save image to card.
 Use card slot on Grand Central, not the TFT shield!
 
+This is a simple demo and not especially thoughtful with your files.
+Existing images on the SD card WILL be overwritten if they exist!
+Files will be in the 'SELFIES' folder and increment from #0001.
+
 HARDWARE REQUIRED:
 - Adafruit Grand Central board
 - Adafruit 1.8" TFT shield V2
@@ -110,6 +114,8 @@ void setup() {
 
   // Once everything's ready, turn TFT backlight on...
   shield.setBacklight(TFTSHIELD_BACKLIGHT_ON);
+  tft.setTextColor(0xFFFF);
+  tft.setTextSize(2);
 }
 
 // MAIN LOOP - RUNS REPEATEDLY UNTIL RESET OR POWER OFF --------------------
@@ -122,6 +128,7 @@ void setup() {
 // known region of the screen again.
 #define KEYFRAME 30   // Number of frames between setAddrWindow commands
 uint16_t frame = 999; // Force 1st frame as keyframe
+uint16_t bmp_num = 1; // Image number increments with each BMP saved
 
 void loop() {
   if (++frame >= KEYFRAME) { // Time to sync up a fresh address window?
@@ -161,13 +168,24 @@ void loop() {
   tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
 #endif
 
-  uint32_t buttons = shield.readButtons();
-  if(!(buttons & TFTSHIELD_BUTTON_1)) {
-    Serial.println("HI!");
-    write_bmp(cam.getBuffer(), cam.width(), cam.height());
-    do { // Wait for button release
-      buttons = shield.readButtons();
-    } while(!(buttons & TFTSHIELD_BUTTON_1));
+  if(!(shield.readButtons() & TFTSHIELD_BUTTON_1)) {
+    char filename[50];
+    sprintf(filename, "/selfies/img%04d.bmp", bmp_num++);
+#if defined(USE_SPI_DMA)
+    tft.dmaWait(); // Wait for prior transfer to complete
+#elif defined(USE_SPI_BRUTE)
+    brute.wait();
+#endif
+    tft.endWrite();     // Close out prior pixel write
+    tft.setRotation(1); // Put text in readable orientation
+    tft.fillRect(42, 58, 74, 18, 0x0000);
+    tft.setCursor(44, 60);
+    tft.print("SAVING");
+    tft.setRotation(3); // Go back to 180 degree screen rotation
+    frame = 999;        // Force keyframe on next update
+    write_bmp(filename, cam.getBuffer(), cam.width(), cam.height());
+    // Wait for button release
+    while(!(shield.readButtons() & TFTSHIELD_BUTTON_1));
   }
 
   cam.resume(); // Resume DMA into camera buffer
@@ -195,9 +213,11 @@ void writeLE32(File *file, uint32_t value) {
 #endif
 }
 
-void write_bmp(uint16_t *addr, uint16_t width, uint16_t height) {
-  SD.remove("/selfies/foo.bmp");
-  File file = SD.open("/selfies/foo.bmp", FILE_WRITE);
+// Minimalist RGB565 BMP-writing function.
+void write_bmp(char *filename, uint16_t *addr,
+               uint16_t width, uint16_t height) {
+  SD.remove(filename); // Delete existing file, if any
+  File file = SD.open(filename, FILE_WRITE);
   if(file) {
     // BMP header, 14 bytes:
     file.write(0x42);                               // Windows BMP signature
@@ -228,13 +248,20 @@ void write_bmp(uint16_t *addr, uint16_t width, uint16_t height) {
     // to-top, so walking through rows incrementally takes care of this
     // axis, and horizontal axis is manually flipped.
     for(int y=0; y<height; y++) {
-      Serial.println(y);
       uint16_t *row = &addr[y * width];
       for(int x=width-1;x >= 0; x--) { // Flip X
         // Raw data from camera is big-endian, BMP needs little-endian
         uint16_t pixel = __builtin_bswap16(row[x]);
         file.write((char *)&pixel, 2);
+        // I mean yeah, since we're flipping both the X axis and endian-
+        // swapping, we COULD just write out the individual row bytes in
+        // reverse order. Handling pixels & bytes separately so there's
+        // no confusion if this code gets used elsewhere and changed
+        // with X in the + direction.
       }
+      // No scanline pad is added. We know the OV7670 library image sizes
+      // are always an even width (4 bytes). Something to keep in mind if
+      // flexible sizing and/or cropping options are added later.
     }
 
     file.close();
