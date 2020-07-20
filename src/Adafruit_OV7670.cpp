@@ -89,8 +89,46 @@ void Adafruit_OV7670::writeRegister(uint8_t reg, uint8_t value) {
   wire->endTransmission();
 }
 
-bool Adafruit_OV7670::setSize(OV7670_size size) {
-  return true; // TO DO: make this realloc buf & return status
+OV7670_status Adafruit_OV7670::setSize(OV7670_size size, OV7670_realloc allo) {
+  uint16_t new_width = 640 >> (int)size;
+  uint16_t new_height = 480 >> (int)size;
+  uint32_t new_buffer_size = new_width * new_height * sizeof(uint16_t);
+  bool ra = false;
+
+  switch (allo) {
+  case OV7670_REALLOC_NONE:
+    if (new_buffer_size > buffer_size) { // New size won't fit
+      // Don't realloc. Keep current camera settings, return error.
+      return OV7670_STATUS_ERR_MALLOC;
+    }
+    break;
+  case OV7670_REALLOC_CHANGE:
+    ra = (new_buffer_size != buffer_size); // Realloc on size change
+    break;
+  case OV7670_REALLOC_LARGER:
+    ra = (new_buffer_size > buffer_size); // Realloc on size increase
+    break;
+  }
+
+  if (ra) { // Reallocate?
+    uint16_t *new_buffer = (uint16_t *)realloc(buffer, new_buffer_size);
+    if (new_buffer == NULL) { // FAIL
+      _width = _height = buffer_size = 0;
+      buffer = NULL;
+      // Calling code had better poll width(), height() or getBuffer() in
+      // this case so it knows the camera buffer is gone, doesn't attempt
+      // to read camera data into unknown RAM.
+      return OV7670_STATUS_ERR_MALLOC;
+    }
+    buffer_size = new_buffer_size;
+  }
+
+  _width = new_width;
+  _height = new_height;
+
+  OV7670_set_size(this, size);
+
+  return OV7670_STATUS_OK;
 }
 
 void Adafruit_OV7670::Y2RGB565(void) {

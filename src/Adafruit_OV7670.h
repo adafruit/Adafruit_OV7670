@@ -19,6 +19,13 @@
 #include <Adafruit_ZeroDMA.h>
 #include <Wire.h>
 
+/** Buffer reallocation behaviors requested of setSize() */
+typedef enum {
+  OV7670_REALLOC_NONE = 0, ///< No realloc, error if new size > current buffer
+  OV7670_REALLOC_CHANGE,   ///< Reallocate image buffer if size changes
+  OV7670_REALLOC_LARGER,   ///< Realloc only if new size is larger
+} OV7670_realloc;
+
 /*!
     @brief  Class encapsulating OV7670 camera functionality.
 */
@@ -128,10 +135,39 @@ public:
     @brief   Change camera resolution post-begin(). Not yet implemented.
     @param   size  One of the OV7670_size values ranging from full VGA
                    (640x480 pixels) to 1/16 VGA (40x30 pixels).
-    @return  true on success (image buffer reallocated, camera configured),
-             false on error (usu. malloc).
+    @param   allo  Camera buffer reallocation behavior:
+                   - OV7670_REALLOC_NONE to not reallocate buffer.
+                     Function will return OV7670_STATUS_OK if new size fits
+                     in existing buffer, or OV7670_ERR_MALLOC if existing
+                     buffer is too small (buffer is not freed and current
+                     camera size is maintained).
+                   - OV7670_REALLOC_CHANGE to reallocate buffer on ANY
+                     size change, up or down. Function will return
+                     OV7670_STATUS_OK if reallocation was successful and
+                     camera size changed, or OV7670_ERR_MALLOC if
+                     reallocation failed (camera width and height will
+                     subsequently both poll as 0, or buffer to NULL, in
+                     this case).
+                   - OV7670_REALLOC_LARGER to reallocate buffer ONLY if new
+                     size exceeds current buffer size. Function will return
+                     OV7670_STATUS_OK if reallocation was successful and
+                     camera size changed, or OV7670_ERR_MALLOC if
+                     reallocation failed (camera width and height will
+                     subsequently both poll as 0 in this case).
+    @return  Status code. OV7670_STATUS_OK on success (image buffer
+             successfully reallocated as requested, camera reconfigured),
+             OV7670_STATUS_ERR_MALLOC in several situations explained above.
+    @note    Reallocating the camera buffer is fraught with peril and should
+             only be done if you're prepared to handle any resulting error.
+             In most cases, code should pass the size of LARGEST buffer it
+             anticipates needing (including any double buffering, etc.) to
+             begin(), which allocates it once on startup. Some RAM will go
+             untilized at times, but it's favorable to entirely losing the
+             camera mid-run. The default request here is CHANGE in case one
+             passes an improper initial value to begin().
   */
-  bool setSize(OV7670_size size);
+  OV7670_status setSize(OV7670_size size,
+                        OV7670_realloc allo = OV7670_REALLOC_CHANGE);
 
   /*!
     @brief  Capture still image to buffer. If background DMA capture is
