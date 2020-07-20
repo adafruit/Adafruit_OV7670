@@ -1,12 +1,13 @@
 /*
-Example for Adafruit_OV7670 library. With camera plugged directly into
-Grand Central PCC pins, it faces "up," same way as a TFT shield, so
-think of it as a selfie camera. Tap "A" button to save image to card.
-Use card slot on Grand Central, not the TFT shield!
+Example for Adafruit_OV7670 library. With camera plugged directly
+into Grand Central PCC pins, it faces "up," same way as a TFT
+shield, so think of it as a selfie camera. Tap "A" button to save
+image to card. Use card slot on Grand Central, not the TFT shield!
 
-This is a simple demo and not especially thoughtful with your files.
-Existing images on the SD card WILL be overwritten if they exist!
-Files will be in the 'SELFIES' folder and increment from #0001.
+This is a simple demo, NOT something for actual productive use, and
+it's not especially thoughtful with your files. Existing images on
+the SD card WILL be overwritten if they exist! Files will be in the
+'SELFIES' folder and increment from #0001.
 
 HARDWARE REQUIRED:
 - Adafruit Grand Central board
@@ -42,7 +43,6 @@ and BMP writing 180 degrees.
 OV7670_arch arch = {.timer = TCC1, .xclk_pdec = false};
 OV7670_pins pins = {.enable = PIN_PCC_D8, .reset = PIN_PCC_D9,
                     .xclk = PIN_PCC_XCLK};
-
 #define CAM_I2C  Wire1 // Second I2C bus next to PCC pins
 #define CAM_SIZE OV7670_SIZE_DIV4 // QQVGA (160x120 pixels)
 #define CAM_MODE OV7670_COLOR_RGB // RGB plz
@@ -255,9 +255,9 @@ void write_bmp(char *filename, uint16_t *addr,
         file.write((char *)&pixel, 2);
         // I mean yeah, since we're flipping both the X axis and endian-
         // swapping, we COULD just write out the individual row bytes in
-        // reverse order. Handling pixels & bytes separately so there's
-        // no confusion if this code gets used elsewhere and changed
-        // with X in the + direction.
+        // reverse order. Handling pixels & bytes separately here so
+        // there's no confusion if this code gets used elsewhere and
+        // changed with X in the + direction.
       }
       // No scanline pad is added. We know the OV7670 library image sizes
       // are always an even width (4 bytes). Something to keep in mind if

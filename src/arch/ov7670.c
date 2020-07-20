@@ -353,6 +353,7 @@ void OV7670_set_size(void *platform, OV7670_size size) {
 }
 
 // Reformat YUV gray component to RGB565 for TFT preview.
+// Big-endian in and out.
 void OV7670_Y2RGB565(uint16_t *ptr, uint32_t len) {
   while(len--) {
     uint8_t y = *ptr & 0xFF; // Y (brightness) component of YUV
