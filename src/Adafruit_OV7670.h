@@ -45,26 +45,35 @@ public:
   /*!
     @brief   Allocate and initialize resources behind an Adafruit_OV7670
              instance.
-    @param   mode  Colorspace. OV7670_COLOR_RGB or OV7670_COLOR_YUV.
-    @param   size  Frame size as a power-of-two reduction of VGA resolution.
-                   Available sizes are OV7670_SIZE_DIV1 (640x480),
-                   OV7670_SIZE_DIV2 (320x240), OV7670_SIZE_DIV4 (160x120),
-                   OV7670_SIZE_DIV8 and OV7670_SIZE_DIV16.
-    @param   fps   Desired capture framerate, in frames per second, as a
-                   float up to 30.0. Actual device frame rate may vary from
-                   this, depending on a host's available PWM timing.
-                   Generally, the actual device fps will be equal or
-                   nearest-available below the requested rate, only in
-                   rare cases of extremely low frame rates will a higher
-                   value be used. Since begin() only returns a status code,
-                   if you need to know the actual framerate you can call
-                   OV7670_set_fps(NULL, fps) at any time before or after
-                   begin() and that will return the actual resulting frame
-                   rate as a float.
+    @param   mode    Colorspace. OV7670_COLOR_RGB or OV7670_COLOR_YUV.
+    @param   size    Frame size as a power-of-two reduction of VGA
+                     resolution. Available sizes are OV7670_SIZE_DIV1
+                     (640x480), OV7670_SIZE_DIV2 (320x240), OV7670_SIZE_DIV4
+                     (160x120), OV7670_SIZE_DIV8 and OV7670_SIZE_DIV16.
+    @param   fps     Desired capture framerate, in frames per second, as a
+                     float up to 30.0. Actual device frame rate may vary
+                     from this, depending on a host's available PWM timing.
+                     Generally, the actual device fps will be equal or
+                     nearest-available below the requested rate, only in
+                     rare cases of extremely low frame rates will a higher
+                     value be used. Since begin() only returns a status
+                     code, if you need to know the actual framerate you can
+                     call OV7670_set_fps(NULL, fps) at any time before or
+                     after begin() and that will return the actual resulting
+                     frame rate as a float.
+    @param   bufsiz  Image buffer size, in bytes. This is configurable so
+                     code can do things like change image sizes without
+                     reallocating (which risks losing the existing buffer)
+                     or double-buffered transfers. Pass 0 to use default
+                     buffer size equal to 2 bytes per pixel times the
+                     number of pixels corresponding to the 'size' argument.
+                     If you later call setSize() with an image size
+                     exceeding the buffer size, it will fail.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
   OV7670_status begin(OV7670_colorspace mode = OV7670_COLOR_RGB,
-                      OV7670_size size = OV7670_SIZE_DIV4, float fps = 30.0);
+                      OV7670_size size = OV7670_SIZE_DIV4, float fps = 30.0,
+                      uint32_t bufsiz = 0);
 
   /*!
     @brief   Reads value of one register from the OV7670 camera over I2C.
@@ -144,6 +153,7 @@ private:
   OV7670_status arch_begin(OV7670_colorspace mode, OV7670_size size, float fps);
   TwoWire *wire;             ///< I2C interface
   uint16_t *buffer;          ///< Camera buffer allocated by lib
+  uint32_t buffer_size;      ///< Size of camera buffer, in bytes
   OV7670_pins pins;          ///< Camera physical connections
   OV7670_arch arch;          ///< Architecture-specific peripheral info
   uint16_t _width;           ///< Current settings width in pixels

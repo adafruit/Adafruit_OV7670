@@ -30,7 +30,7 @@ typedef enum {
 /** Supported color formats */
 typedef enum {
   OV7670_COLOR_RGB = 0, ///< RGB565 big-endian
-  OV7670_COLOR_YUV,     ///< YUV/YCbCr 4:2:2
+  OV7670_COLOR_YUV,     ///< YUV/YCbCr 4:2:2 big-endian
 } OV7670_colorspace;
 
 /** Supported sizes (VGA division factor) for OV7670_set_size() */

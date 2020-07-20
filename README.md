@@ -101,6 +101,21 @@ slightly less gross than the alternative. There's some notes in the .cpp.
 
 ## OV7670 notes
 
+Data from the OV7670 is always in BIG-ENDIAN format. Most 16-bit TFT and
+OLED displays are also big-endian, so it's straightforward to move data
+directly from one to the other. If you processing the image though...most
+microcontrollers are little-endian, so anything interpreting colors of an
+image will usually need to byte-swap the data, e.g. for each pixel:
+
+    le = __builtin_bswap16(be);
+
+RGR565 and YUV output are supported. RGB444 and RGB555 are of questionable
+utility so I'm not bothering. A function is provided to convert YUV to a
+grayscale big-endian RGB565 representation for output to TFT displays.
+If not displaying, if you only need the grayscale (0-255) value of a pixel,
+use the LSB of a 16-bit YUV pixel (don't covert to RGB565, as this will
+decimate the grayscale resolution).
+
 The library currently provides five resolution settings from full VGA
 (640x480 pixels, RAM permitting, which it isn't), and powers-of-two
 divisions of this, down to 1:16 (40x30 pixels).
@@ -108,7 +123,7 @@ divisions of this, down to 1:16 (40x30 pixels).
 An intentional choice was made to ignore the camera's CIF resolution options
 for the sake of getting things done. CIF is an antiquated throwback to
 analog PAL video and doesn't really get us much, being just slightly larger
-than the nearest corresponding VGA division.
+than the nearest corresponding VGA division anyway.
 
 IN THEORY the camera can provide nearly any resolution from CIF down to
 40x30, with independent scaling on each axis. In practice this has proven
@@ -120,5 +135,3 @@ But for now, just the VGA powers-of-two.
 At the smallest size (40x30), there are artifacts in the first row and
 column that I've not been able to eliminate. Any software using this
 setting should try to mask out or otherwise ignore those pixels.
-
-Additionally, only RGB565 color is currently supported.
