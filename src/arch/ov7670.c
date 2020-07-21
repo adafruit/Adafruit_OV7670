@@ -287,7 +287,8 @@ float OV7670_set_fps(void *platform, float fps) {
 // rolling this into OV7670_set_size(), it's kept separate so test code
 // can experiment with different settings to find ideal defaults.
 void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
-                          uint16_t hstart, uint8_t edge_offset, uint8_t delay) {
+                          uint16_t hstart, uint8_t edge_offset,
+                          uint8_t pclk_delay) {
   uint8_t value;
 
   // Enable downsampling if sub-VGA, and zoom if 1:16 scale
@@ -327,7 +328,7 @@ void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
   OV7670_write_register(platform, OV7670_REG_VREF,
                         ((vstop & 0b11) << 2) | (vstart & 0b11));
 
-  OV7670_write_register(platform, OV7670_REG_SCALING_PCLK_DELAY, delay);
+  OV7670_write_register(platform, OV7670_REG_SCALING_PCLK_DELAY, pclk_delay);
 }
 
 void OV7670_set_size(void *platform, OV7670_size size) {

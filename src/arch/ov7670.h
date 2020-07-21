@@ -299,7 +299,8 @@ void OV7670_set_size(void *platform, OV7670_size size);
 // Lower-level resolution register fiddling function, exposed so dev code
 // can test variations for OV7670_set_size() windowing defaults.
 void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
-                          uint16_t hstart, uint8_t edge_offset, uint8_t delay);
+                          uint16_t hstart, uint8_t edge_offset,
+                          uint8_t pclk_delay);
 
 // Convert Y (brightness) component YUV image in RAM to RGB565 big-
 // endian format for preview on TFT display. Data is overwritten in-place,

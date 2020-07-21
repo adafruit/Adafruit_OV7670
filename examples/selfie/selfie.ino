@@ -106,7 +106,11 @@ void setup() {
 
   // Once started, the camera continually fills a frame buffer
   // automagically; no need to request a frame.
-  OV7670_status status = cam.begin(CAM_MODE, CAM_SIZE, 30.0);
+  // Camera buffer is allocated for the larger 320x240 pixel size,
+  // though the preview is only 160x120. This is to ensure that the
+  // RAM is available later when we go to take a higher-resolution
+  // still to save.
+  OV7670_status status = cam.begin(CAM_MODE, CAM_SIZE, 30.0, 320 * 240 * 2);
   if (status != OV7670_STATUS_OK) {
     Serial.println("Camera begin() fail");
     for(;;);
@@ -176,6 +180,12 @@ void loop() {
 #elif defined(USE_SPI_BRUTE)
     brute.wait();
 #endif
+    // Set camera capture to larger size (320x240). The REALLOC_NONE
+    // tells it to keep the original buffer in place, which we allocated
+    // large enough in setup() to handle these stills. Continual
+    // reallocation would just be asking for trouble.
+    cam.setSize(OV7670_SIZE_DIV2, OV7670_REALLOC_NONE);
+    delay(100);         // Stabilize for a few frames
     tft.endWrite();     // Close out prior pixel write
     tft.setRotation(1); // Put text in readable orientation
     tft.fillRect(42, 58, 74, 18, 0x0000);
@@ -183,9 +193,11 @@ void loop() {
     tft.print("SAVING");
     tft.setRotation(3); // Go back to 180 degree screen rotation
     frame = 999;        // Force keyframe on next update
+    cam.capture();      // Manual (non-DMA) capture
     write_bmp(filename, cam.getBuffer(), cam.width(), cam.height());
-    // Wait for button release
-    while(!(shield.readButtons() & TFTSHIELD_BUTTON_1));
+    // Restore the original preview size from camera. Again, use
+    // REALLOC_NONE to maintain our original camera buffer.
+    cam.setSize(CAM_SIZE, OV7670_REALLOC_NONE);
   }
 
   cam.resume(); // Resume DMA into camera buffer
