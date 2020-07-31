@@ -54,14 +54,16 @@ Adafruit_OV7670::~Adafruit_OV7670() {
 
 // CAMERA INIT AND CONFIG FUNCTIONS ----------------------------------------
 
-OV7670_status Adafruit_OV7670::begin(OV7670_colorspace mode, OV7670_size size,
-                                     float fps, uint32_t bufsiz) {
+OV7670_status Adafruit_OV7670::begin(OV7670_colorspace colorspace,
+                                     OV7670_size size, float fps,
+                                     uint32_t bufsiz) {
 
   wire->begin();
   wire->setClock(100000); // Datasheet claims 400 KHz, but no, use 100 KHz
 
   _width = 640 >> (int)size;  // 640, 320, 160, 80, 40
   _height = 480 >> (int)size; // 480, 240, 120, 60, 30
+  space = colorspace;
 
   // Allocate buffer for camera
   buffer_size = bufsiz ? bufsiz : _width * _height * sizeof(uint16_t);
@@ -71,7 +73,7 @@ OV7670_status Adafruit_OV7670::begin(OV7670_colorspace mode, OV7670_size size,
     return OV7670_STATUS_ERR_MALLOC;
   }
 
-  arch_begin(mode, size, fps); // Device-specific setup
+  arch_begin(colorspace, size, fps); // Device-specific setup
 }
 
 int Adafruit_OV7670::readRegister(uint8_t reg) {

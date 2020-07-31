@@ -14,7 +14,7 @@
 // just once on startup, or during I2C transfers which are slow anyway).
 
 extern void OV7670_print(char *str);
-extern void OV7670_read_register(void *platform, uint8_t reg);
+extern int OV7670_read_register(void *platform, uint8_t reg);
 extern void OV7670_write_register(void *platform, uint8_t reg, uint8_t value);
 
 // UTILITY FUNCTIONS -------------------------------------------------------
@@ -156,7 +156,7 @@ static const OV7670_command
         {OV7670_REG_LAST + 1, 0x00},       // End-of-data marker
 };
 
-OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace mode,
+OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace colorspace,
                            OV7670_size size, float fps) {
   OV7670_status status;
 
@@ -193,7 +193,7 @@ OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace mode,
   OV7670_delay_ms(1); // Datasheet: tS:RESET = 1 ms
 
   (void)OV7670_set_fps(host->platform, fps); // Timing
-  if (mode == OV7670_COLOR_RGB) {
+  if (colorspace == OV7670_COLOR_RGB) {
     OV7670_write_list(host->platform, OV7670_rgb);
   } else {
     OV7670_write_list(host->platform, OV7670_yuv);
@@ -203,6 +203,8 @@ OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace mode,
 
   OV7670_delay_ms(300); // tS:REG = 300 ms (settling time = 10 frames)
 }
+
+// MISCELLANY AND CAMERA CONFIG FUNCTIONS ----------------------------------
 
 // Configure camera frame rate. Actual resulting frame rate (returned) may
 // be different depending on available clock frequencies. Result will only
@@ -311,8 +313,16 @@ void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
 
   // Apply 0.5 digital zoom at 1:16 size (others are downsample only)
   value = (size == OV7670_SIZE_DIV16) ? 0x40 : 0x20; // 0.5, 1.0
-  OV7670_write_register(platform, OV7670_REG_SCALING_XSC, value);
-  OV7670_write_register(platform, OV7670_REG_SCALING_YSC, value);
+  // Read current SCALING_XSC and SCALING_YSC register values because
+  // test pattern settings are also stored in those registers and we
+  // don't want to corrupt anything there.
+  uint8_t xsc = OV7670_read_register(platform, OV7670_REG_SCALING_XSC);
+  uint8_t ysc = OV7670_read_register(platform, OV7670_REG_SCALING_YSC);
+  xsc = (xsc & 0x80) | value; // Modify only scaling bits (not test pattern)
+  ysc = (ysc & 0x80) | value;
+  // Write modified result back to SCALING_XSC and SCALING_YSC
+  OV7670_write_register(platform, OV7670_REG_SCALING_XSC, xsc);
+  OV7670_write_register(platform, OV7670_REG_SCALING_YSC, ysc);
 
   // Window size is scattered across multiple registers.
   // Horiz/vert stops can be automatically calc'd from starts.
@@ -351,6 +361,66 @@ void OV7670_set_size(void *platform, OV7670_size size) {
 
   OV7670_frame_control(platform, size, window[size].vstart, window[size].hstart,
                        window[size].edge_offset, window[size].pclk_delay);
+}
+
+// Select one of the camera's night modes (or disable).
+// Trades off frame rate for less grainy images in low light.
+void OV7670_night(void *platform, OV7670_night_mode night) {
+  // Table of bit patterns for the different supported night modes.
+  // There's a "same frame rate" option for OV7670 night mode but it
+  // doesn't seem to do anything useful and can be skipped over.
+  static const uint8_t night_bits[] = {0b00000000, 0b10100000, 0b11000000,
+                                       0b11100000};
+  // Read current COM11 register setting so unrelated bits aren't corrupted
+  uint8_t com11 = OV7670_read_register(platform, OV7670_REG_COM11);
+  com11 &= 0b00011111;        // Clear night mode bits
+  com11 |= night_bits[night]; // Set night bits for desired mode
+  // Write modified result back to COM11 register
+  OV7670_write_register(platform, OV7670_REG_COM11, com11);
+}
+
+// Flips camera output on horizontal and/or vertical axes.
+// Note: datasheet refers to horizontal flip as "mirroring," but
+// avoiding that terminology here that it might be mistaken for a
+// split-down-middle-and-reflect funhouse effect, which it isn't.
+void OV7670_flip(void *platform, bool flip_x, bool flip_y) {
+  // Read current MVFP register setting, so we don't corrupt any
+  // reserved bits or the "black sun" bit if it was previously set.
+  uint8_t mvfp = OV7670_read_register(platform, OV7670_REG_MVFP);
+  if (flip_x) {
+    mvfp |= OV7670_MVFP_MIRROR; // Horizontal flip
+  } else {
+    mvfp &= ~OV7670_MVFP_MIRROR;
+  }
+  if (flip_y) {
+    mvfp |= OV7670_MVFP_VFLIP; // Vertical flip
+  } else {
+    mvfp &= ~OV7670_MVFP_VFLIP;
+  }
+  // Write modified result back to MVFP register
+  OV7670_write_register(platform, OV7670_REG_MVFP, mvfp);
+}
+
+// Selects one of the camera's test patterns (or disable).
+// See Adafruit_OV7670.h for notes about minor visual bug here.
+void OV7670_test_pattern(void *platform, OV7670_pattern pattern) {
+  // Read current SCALING_XSC and SCALING_YSC register settings,
+  // so image scaling settings aren't corrupted.
+  uint8_t xsc = OV7670_read_register(platform, OV7670_REG_SCALING_XSC);
+  uint8_t ysc = OV7670_read_register(platform, OV7670_REG_SCALING_YSC);
+  if (pattern & 1) {
+    xsc |= 0x80;
+  } else {
+    xsc &= ~0x80;
+  }
+  if (pattern & 2) {
+    ysc |= 0x80;
+  } else {
+    ysc &= ~0x80;
+  }
+  // Write modified results back to SCALING_XSC and SCALING_YSC registers
+  OV7670_write_register(platform, OV7670_REG_SCALING_XSC, xsc);
+  OV7670_write_register(platform, OV7670_REG_SCALING_YSC, ysc);
 }
 
 // Reformat YUV gray component to RGB565 for TFT preview.

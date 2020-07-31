@@ -93,8 +93,8 @@ void setup() {
 // screen (it wraps around automatically). We do need an OCCASIONAL
 // setAddrWindow() in case SPI glitches, as this syncs things up to a
 // known region of the screen again.
-#define KEYFRAME 30   // Number of frames between setAddrWindow commands
-uint16_t frame = 999; // Force 1st frame as keyframe
+#define KEYFRAME 30        // Number of frames between setAddrWindow commands
+uint16_t frame = KEYFRAME; // Force 1st frame as keyframe
 
 void loop() {
   // This was for empirically testing window settings in src/arch/ov7670.c.
@@ -129,6 +129,13 @@ void loop() {
   cam.suspend();
 
   //cam.capture(); // Manual capture instead of PCC DMA
+
+  // Postprocessing effects. These modify a previously-captured
+  // image in memory, they are NOT in-camera effects.
+  //cam.image_negative();
+  //cam.image_threshold(150);
+  //cam.image_posterize(5);
+  //cam.image_mosaic(21, 9);
 
   if(CAM_MODE == OV7670_COLOR_YUV) {
     cam.Y2RGB565(); // Convert grayscale for TFT preview

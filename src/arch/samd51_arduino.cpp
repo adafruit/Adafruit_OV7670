@@ -68,7 +68,7 @@ void Adafruit_OV7670::resume(void) {
   suspended = false; // Resume DMA transfers
 }
 
-OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace mode,
+OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
                                           OV7670_size size, float fps) {
 
   // BASE INITIALIZATION (PLATFORM-AGNOSTIC) -------------------------------
@@ -86,7 +86,7 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace mode,
   host.platform = this; // Pointer back to Arduino_OV7670 object
 
   OV7670_status status;
-  status = OV7670_begin(&host, mode, size, fps);
+  status = OV7670_begin(&host, colorspace, size, fps);
   if (status != OV7670_STATUS_OK) {
     return status;
   }
