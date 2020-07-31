@@ -270,7 +270,7 @@ public:
             image size does not divide equally by tile size, fractional
             tiles will always be along the right and/or bottom edge(s);
             top left corner is always a full tile.
-            YUV colorspace is not currently supported. 
+            YUV colorspace is not currently supported.
     @param  tile_width   Tile width in pixels (1 to 255)
     @param  tile_height  Tile height in pixels (1 to 255)
   */
