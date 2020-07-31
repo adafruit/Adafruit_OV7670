@@ -15,7 +15,8 @@
 
 #pragma once
 
-#include "arch/ov7670.h"
+#include "ov7670.h"
+#include "image_ops.h"
 #include <Adafruit_ZeroDMA.h>
 #include <Wire.h>
 
@@ -174,6 +175,54 @@ public:
             supported, this has no effect; latest image is always there.
   */
   void capture(void);
+
+  /*!
+    @brief  Select one of the camera's night modes. Images are less
+            grainy in low light, tradeoff being a reduced frame rate.
+    @param  night  One of the OV7670_night_mode types:
+                   OV7670_NIGHT_MODE_OFF  Disable night mode, full frame rate
+                   OV7670_NIGHT_MODE_2    1/2 frame rate
+                   OV7670_NIGHT_MODE_4    1/4 frame rate
+                   OV7670_NIGHT_MODE_8    1/8 frame rate
+  */
+  void night(OV7670_night_mode night) { OV7670_night(this, night); }
+
+  /*!
+    @brief  Flip camera output on horizontal and/or vertical axes.
+            Flipping both axes is equivalent to 180 degree rotation.
+    @param  flip_x  If true, flip camera output on horizontal axis.
+    @param  flip_y  If true, flip camera output on vertical axis.
+    @note   Datasheet refers to horizontal flip as "mirroring," but
+            avoiding that terminology here that it might be mistaken for a
+            split-down-middle-and-reflect funhouse effect, which it isn't.
+  */
+  void flip(bool flip_x, bool flip_y) { OV7670_flip(this, flip_x, flip_y); }
+
+  /*!
+    @brief  Enable/disable camera test pattern output.
+    @param  pattern  One of the OV7670_pattern values:
+                     OV7670_TEST_PATTERN_NONE
+                       Disable test pattern, display normal camera video.
+                     OV7670_TEST_PATTERN_SHIFTING_1
+                       "Shifting 1" test pattern (seems to be single-column
+                       vertical RGB lines).
+                     OV7670_TEST_PATTERN_COLOR_BAR
+                       Eight color bars.
+                     OV7670_TEST_PATTERN_COLOR_BAR_FADE
+                       Eight color bars with fade to white.
+    @note   This basically works but has some artifacts...color bars are
+            wrapped around such that a few pixels of the rightmost (white)
+            bar appear at the left of the leftmost (black) bar. It seems
+            that the frame control settings need to be slightly different
+            for image sensor vs test patterns (frame control that displays
+            the bars correctly has green artifacts along right edge when
+            using image sensor). Eventually will want to make this handle
+            the different cases and sizes correctly. In the meantime,
+            there's minor uglies in test mode.
+  */
+  void test_pattern(OV7670_pattern pattern) {
+    OV7670_test_pattern(this, pattern);
+  }
 
   /*!
     @brief  Convert Y (brightness) component YUV image in RAM to RGB565

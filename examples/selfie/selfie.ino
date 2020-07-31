@@ -130,9 +130,9 @@ void setup() {
 // screen (it wraps around automatically). We do need an OCCASIONAL
 // setAddrWindow() in case SPI glitches, as this syncs things up to a
 // known region of the screen again.
-#define KEYFRAME 30   // Number of frames between setAddrWindow commands
-uint16_t frame = 999; // Force 1st frame as keyframe
-uint16_t bmp_num = 1; // Image number increments with each BMP saved
+#define KEYFRAME 30        // Number of frames between setAddrWindow commands
+uint16_t frame = KEYFRAME; // Force 1st frame as keyframe
+uint16_t bmp_num = 1;      // Image number increments with each BMP saved
 
 void loop() {
   if (++frame >= KEYFRAME) { // Time to sync up a fresh address window?

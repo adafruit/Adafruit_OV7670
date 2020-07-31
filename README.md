@@ -78,9 +78,9 @@ that's all.
         Adafruit_OV7670.h    Arduino C++ class header
         SPIBrute.cpp         SAMD51-specific C++ class, see notes above
         SPIBrute.h           C++ header for SPIBrute.cpp
-    src/arch/                Mid-layer C, plus arch-specific code
         ov7670.c             Architecture- and platform-neutral functions in C
         ov7670.h             C header for ov7670.c
+    src/arch/                Architecture-specific code
         samd51.c             SAMD51 arch-specific, platform-neutral C functions
         samd51.h             Header for samd51.c
         samd51_arduino.cpp   SAMD51 arch- and Arduino-specific C++ functions

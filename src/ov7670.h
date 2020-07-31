@@ -2,7 +2,7 @@
 
 // IMPORTANT: #include ALL of the arch-specific .h files here.
 // They have #ifdef checks to only take effect on the active architecture.
-#include "samd51.h"
+#include "arch/samd51.h"
 
 #if defined(ARDUINO)
 #include <Arduino.h>
@@ -41,6 +41,20 @@ typedef enum {
   OV7670_SIZE_DIV8,     ///< 80 x 60
   OV7670_SIZE_DIV16,    ///< 40 x 30
 } OV7670_size;
+
+typedef enum {
+  OV7670_TEST_PATTERN_NONE = 0,       ///< Disable test pattern
+  OV7670_TEST_PATTERN_SHIFTING_1,     ///< "Shifting 1" pattern
+  OV7670_TEST_PATTERN_COLOR_BAR,      ///< 8 color bars
+  OV7670_TEST_PATTERN_COLOR_BAR_FADE, ///< Color bars w/fade to white
+} OV7670_pattern;
+
+typedef enum {
+  OV7670_NIGHT_MODE_OFF = 0, ///< Disable night mode
+  OV7670_NIGHT_MODE_2,       ///< Night mode 1/2 frame rate
+  OV7670_NIGHT_MODE_4,       ///< Night mode 1/4 frame rate
+  OV7670_NIGHT_MODE_8,       ///< Night mode 1/8 frame rate
+} OV7670_night_mode;
 
 /**
 Defines physical connection to OV7670 camera, passed to constructor.
@@ -301,6 +315,17 @@ void OV7670_set_size(void *platform, OV7670_size size);
 void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
                           uint16_t hstart, uint8_t edge_offset,
                           uint8_t pclk_delay);
+
+// Select one of the camera's night modes (or disable).
+// Trades off frame rate for less grainy images in low light.
+void OV7670_night(void *platform, OV7670_night_mode night);
+
+// Flips camera output on horizontal and/or vertical axes.
+void OV7670_flip(void *platform, bool flip_x, bool flip_y);
+
+// Selects one of the camera's test patterns (or disable).
+// See Adafruit_OV7670.h for notes about minor visual bug here.
+void OV7670_test_pattern(void *platform, OV7670_pattern pattern);
 
 // Convert Y (brightness) component YUV image in RAM to RGB565 big-
 // endian format for preview on TFT display. Data is overwritten in-place,
