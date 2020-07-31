@@ -292,7 +292,7 @@ extern "C" {
 // Architecture- and platform-neutral initialization function.
 // Called by the platform init function, this in turn may call an
 // architecture-specific init function.
-OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace mode,
+OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace colorspace,
                            OV7670_size size, float fps);
 
 // Configure camera frame rate. Actual resulting frame rate (returned) may

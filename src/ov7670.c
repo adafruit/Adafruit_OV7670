@@ -156,7 +156,7 @@ static const OV7670_command
         {OV7670_REG_LAST + 1, 0x00},       // End-of-data marker
 };
 
-OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace mode,
+OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace colorspace,
                            OV7670_size size, float fps) {
   OV7670_status status;
 
@@ -193,7 +193,7 @@ OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace mode,
   OV7670_delay_ms(1); // Datasheet: tS:RESET = 1 ms
 
   (void)OV7670_set_fps(host->platform, fps); // Timing
-  if (mode == OV7670_COLOR_RGB) {
+  if (colorspace == OV7670_COLOR_RGB) {
     OV7670_write_list(host->platform, OV7670_rgb);
   } else {
     OV7670_write_list(host->platform, OV7670_yuv);

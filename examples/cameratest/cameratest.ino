@@ -130,12 +130,12 @@ void loop() {
 
   //cam.capture(); // Manual capture instead of PCC DMA
 
-  // Postprocessing effects
-  //OV7670_image_invert(cam.getBuffer(), cam.width(), cam.height());
-  //OV7670_image_threshold(CAM_MODE, cam.getBuffer(), cam.width(), cam.height(), 128);
-  //OV7670_image_posterize(CAM_MODE, cam.getBuffer(), cam.width(), cam.height(), 5);
-  //OV7670_image_mosaic(CAM_MODE, cam.getBuffer(), cam.width(), cam.height(), 21, 9);
-  //OV7670_image_edges(CAM_MODE, cam.getBuffer(), cam.width(), cam.height(), 42);
+  // Postprocessing effects. These modify a previously-captured
+  // image in memory, they are NOT in-camera effects.
+  //cam.image_negative();
+  //cam.image_threshold(150);
+  //cam.image_posterize(5);
+  //cam.image_mosaic(21, 9);
 
   if(CAM_MODE == OV7670_COLOR_YUV) {
     cam.Y2RGB565(); // Convert grayscale for TFT preview

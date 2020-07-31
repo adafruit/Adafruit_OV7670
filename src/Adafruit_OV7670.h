@@ -15,8 +15,8 @@
 
 #pragma once
 
-#include "ov7670.h"
 #include "image_ops.h"
+#include "ov7670.h"
 #include <Adafruit_ZeroDMA.h>
 #include <Wire.h>
 
@@ -53,33 +53,35 @@ public:
   /*!
     @brief   Allocate and initialize resources behind an Adafruit_OV7670
              instance.
-    @param   mode    Colorspace. OV7670_COLOR_RGB or OV7670_COLOR_YUV.
-    @param   size    Frame size as a power-of-two reduction of VGA
-                     resolution. Available sizes are OV7670_SIZE_DIV1
-                     (640x480), OV7670_SIZE_DIV2 (320x240), OV7670_SIZE_DIV4
-                     (160x120), OV7670_SIZE_DIV8 and OV7670_SIZE_DIV16.
-    @param   fps     Desired capture framerate, in frames per second, as a
-                     float up to 30.0. Actual device frame rate may vary
-                     from this, depending on a host's available PWM timing.
-                     Generally, the actual device fps will be equal or
-                     nearest-available below the requested rate, only in
-                     rare cases of extremely low frame rates will a higher
-                     value be used. Since begin() only returns a status
-                     code, if you need to know the actual framerate you can
-                     call OV7670_set_fps(NULL, fps) at any time before or
-                     after begin() and that will return the actual resulting
-                     frame rate as a float.
-    @param   bufsiz  Image buffer size, in bytes. This is configurable so
-                     code can do things like change image sizes without
-                     reallocating (which risks losing the existing buffer)
-                     or double-buffered transfers. Pass 0 to use default
-                     buffer size equal to 2 bytes per pixel times the
-                     number of pixels corresponding to the 'size' argument.
-                     If you later call setSize() with an image size
-                     exceeding the buffer size, it will fail.
+    @param   colorspace  OV7670_COLOR_RGB or OV7670_COLOR_YUV.
+    @param   size        Frame size as a power-of-two reduction of VGA
+                         resolution. Available sizes are OV7670_SIZE_DIV1
+                         (640x480), OV7670_SIZE_DIV2 (320x240),
+                         OV7670_SIZE_DIV4 (160x120), OV7670_SIZE_DIV8 and
+                         OV7670_SIZE_DIV16.
+    @param   fps         Desired capture framerate, in frames per second,
+                         as a float up to 30.0. Actual device frame rate may
+                         differ from this, depending on a host's available
+                         PWM timing. Generally, the actual device fps will
+                         be equal or nearest-available below the requested
+                         rate, only in rare cases of extremely low requested
+                         frame rates will a higher value be used. Since
+                         begin() only returns a status code, if you need to
+                         know the actual framerate you can call
+                         OV7670_set_fps(NULL, fps) at any time before or
+                         after begin() and that will return the actual
+                         resulting frame rate as a float.
+    @param   bufsiz      Image buffer size, in bytes. This is configurable so
+                         code can do things like change image sizes without
+                         reallocating (which risks losing the existing buffer)
+                         or double-buffered transfers. Pass 0 to use default
+                         buffer size equal to 2 bytes per pixel times the
+                         number of pixels corresponding to the 'size'
+                         argument. If you later call setSize() with an image
+                         size exceeding the buffer size, it will fail.
     @return  Status code. OV7670_STATUS_OK on successful init.
   */
-  OV7670_status begin(OV7670_colorspace mode = OV7670_COLOR_RGB,
+  OV7670_status begin(OV7670_colorspace colorspace = OV7670_COLOR_RGB,
                       OV7670_size size = OV7670_SIZE_DIV4, float fps = 30.0,
                       uint32_t bufsiz = 0);
 
@@ -225,6 +227,82 @@ public:
   }
 
   /*!
+    @brief  Produces a negative image. This is a postprocessing effect,
+            not in-camera, and must be applied to frame(s) manually.
+            Image in memory will be overwritten.
+  */
+  void image_negative(void) { OV7670_image_negative(buffer, _width, _height); };
+
+  /*!
+    @brief  Decimate an image to only it's min/max values (ostensibly
+            "black and white," but works on color channels separately
+            so that's not strictly the case). This is a postprocessing
+            effect, not in-camera, and must be applied to frame(s) manually.
+            Image in memory will be overwritten.
+    @param  threshold  Threshold level, 0-255; pixel brightnesses at or
+                       above this level are set to the maximum, below this
+                       level are set to the minimum. Input value is scaled
+                       to accommodate the lower color fidelity of the RGB
+                       colorspace -- use 0 to 255, not 0 to 31 or 63.
+  */
+  void image_threshold(uint8_t threshold = 128) {
+    OV7670_image_threshold(space, buffer, _width, _height, threshold);
+  };
+
+  /*!
+    @brief  Decimate an image to a limited number of brightness levels or
+            steps. This is a postprocessing effect, not in-camera, and must
+            be applied to frame(s) manually. Image in memory will be
+            overwritten.
+    @param  levels  Number of brightness levels -- 2 to 32 for RGB
+                    colorspace, 2 to 255 for YUV.
+  */
+  void image_posterize(uint8_t levels = 4) {
+    OV7670_image_posterize(space, buffer, _width, _height, levels);
+  };
+
+  /*!
+    @brief  Mosaic or "shower door effect," downsamples an image into
+            rectangular tiles, each tile's color being the average of all
+            source image pixels within that tile's area. This is a
+            postprocessing effect, not in-camera, and must be applied to
+            frame(s) manually. Image in memory will be overwritten. If
+            image size does not divide equally by tile size, fractional
+            tiles will always be along the right and/or bottom edge(s);
+            top left corner is always a full tile.
+            YUV colorspace is not currently supported. 
+    @param  tile_width   Tile width in pixels (1 to 255)
+    @param  tile_height  Tile height in pixels (1 to 255)
+  */
+  void image_mosaic(uint8_t tile_width = 8, uint8_t tile_height = 8) {
+    OV7670_image_mosaic(space, buffer, _width, _height, tile_width,
+                        tile_height);
+  };
+
+  /*!
+    @brief  3x3 pixel median filter, reduces visual noise in image.
+            This is a postprocessing effect, not in-camera, and must be
+            applied to frame(s) manually. Image in memory will be
+            overwritten.
+            NOT YET IMPLEMENTED.
+  */
+  void image_median(void) {
+    OV7670_image_median(space, buffer, _width, _height);
+  };
+
+  /*!
+    @brief  Edge detection filter.
+            This is a postprocessing effect, not in-camera, and must be
+            applied to frame(s) manually. Image in memory will be
+            overwritten.
+            NOT YET IMPLEMENTED.
+    @param  sensitivity  Smaller value = more sensitive to edge changes.
+  */
+  void image_edges(uint8_t sensitivity = 4) {
+    OV7670_image_edges(space, buffer, _width, _height, sensitivity);
+  };
+
+  /*!
     @brief  Convert Y (brightness) component YUV image in RAM to RGB565
             big-endian format for preview on TFT display. Camera buffer is
             overwritten in-place, Y is truncated and UV elements are lost.
@@ -235,7 +313,8 @@ public:
   void Y2RGB565(void);
 
 private:
-  OV7670_status arch_begin(OV7670_colorspace mode, OV7670_size size, float fps);
+  OV7670_status arch_begin(OV7670_colorspace colorspace, OV7670_size size,
+                           float fps);
   TwoWire *wire;             ///< I2C interface
   uint16_t *buffer;          ///< Camera buffer allocated by lib
   uint32_t buffer_size;      ///< Size of camera buffer, in bytes
@@ -243,6 +322,7 @@ private:
   OV7670_arch arch;          ///< Architecture-specific peripheral info
   uint16_t _width;           ///< Current settings width in pixels
   uint16_t _height;          ///< Current settings height in pixels
+  OV7670_colorspace space;   ///< RGB or YUV colorspace
   const uint8_t i2c_address; ///< I2C address
   const bool arch_defaults;  ///< If set, ignore arch struct, use defaults
 };

@@ -73,11 +73,15 @@ that's all.
     examples/
         cameratest/
             cameratest.ino   Grand Central demo, OV7670 to ILI9341 TFT shield
+        selfie/
+            selfie.ino       Grand Central demo, OV7670 to 1.8" TFT shield
     src/
         Adafruit_OV7670.cpp  Arduino C++ class functions
         Adafruit_OV7670.h    Arduino C++ class header
         SPIBrute.cpp         SAMD51-specific C++ class, see notes above
         SPIBrute.h           C++ header for SPIBrute.cpp
+        image_ops.c          Postprocessing (not in-camera) effects
+        image_ops.h          C header for image_ops.c
         ov7670.c             Architecture- and platform-neutral functions in C
         ov7670.h             C header for ov7670.c
     src/arch/                Architecture-specific code
@@ -98,6 +102,11 @@ Finer details are in comments peppered throughout the source.
 The Arduino library and examples make use of an architecture-specific "arch"
 structure. This is kind of gross, but after much deliberation it seemed just
 slightly less gross than the alternative. There's some notes in the .cpp.
+
+The functions in image_ops.c perform postprocessing on a captured OV7670
+image. These are not in-camera effects, though some might be possible
+to implement as such. Image is overwritten -- destination buffer is
+always the same as the source buffer, same dimensions, same colorspace.
 
 ## OV7670 notes
 
