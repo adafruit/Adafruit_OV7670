@@ -71,8 +71,9 @@ void OV7670_image_posterize(OV7670_colorspace space, uint16_t *pixels,
       return;
     } else {
       // Good posterization requires a fair bit of fixed-point math.
-      // Rather than repeat all those steps over every pixel, lookup
-      // tables are generated instead, pixels get filtered through these.
+      // Rather than repeat all those steps over every pixel, and since
+      // RGB565 is already fairly quantized, lookup tables are generated
+      // instead, pixels get filtered through these.
       uint16_t rtable[32], gtable[64], rgb;
       uint8_t  btable[32];
       for(i=0; i<32; i++) { // 5 bits each for red & blue
@@ -106,16 +107,77 @@ void OV7670_image_posterize(OV7670_colorspace space, uint16_t *pixels,
   }
 }
 
+// Fractional tiles are on right and/or bottom edge(s)
 void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
                          uint16_t width, uint16_t height, uint8_t tile_width,
                          uint8_t tile_height) {
+  if ((tile_width <= 1) && (tile_height <= 1)) {
+    return;
+  }
+  if(tile_width < 1) {
+    tile_width = 1;
+  }
+  if(tile_height < 1) {
+    tile_height = 1;
+  }
+
   uint8_t tiles_across = (width + (tile_width - 1)) / tile_width;
   uint8_t tiles_down = (height + (tile_height - 1)) / tile_height;
-  uint32_t red_sum, green_sum, blue_sum;
-  uint8_t y;
-  for(y=0; y<tiles_down; y++) {
-// Accumulate tiles here
-// Copy scanlines, don't waste cycles on rect fill
+  uint16_t tile_x, tile_y;
+  uint16_t x1, x2, y1, y2, xx, yy; // Tile bounds, counters
+  uint32_t pixels_in_tile;
+
+  if (space == OV7670_COLOR_RGB) {
+    uint16_t rgb;
+    uint32_t red_sum, green_sum, blue_sum;
+    uint32_t yy1, yy2;
+    for (y1=tile_y=0; tile_y<tiles_down; tile_y++) { // Each tile row...
+      y2 = y1 + tile_height - 1; // Last pixel row in current tile row
+      if (y2 >= height) {        // Clip to bottom of image
+        y2 = height - 1;
+      }
+      // Recalc this each tile row because tile x loop may alter it:
+      pixels_in_tile = tile_width * (y2 - y1 + 1);
+      for (x1=tile_x=0; tile_x<tiles_across; tile_x++) { // Each tile column...
+        x2 = x1 + tile_width - 1; // Last pixel column in current tile column
+        if (x2 >= width) { // Clip to right of image
+          x2 = width - 1;
+          pixels_in_tile = (x2 - x1 + 1) * (y2 - y1 + 1);
+        }
+        // Accumulate red, green, blue sums for all pixels in tile
+        red_sum = green_sum = blue_sum = 0;
+        yy2 = y1 * width; // Index of first pixel in tile
+        for (yy = y1; yy <= y2; yy++) { // Each pixel row in tile...
+          for (xx = x1; xx <= x2; xx++) { // Each pixel column in tile...
+            rgb = __builtin_bswap16(pixels[yy2 + xx]);
+            red_sum += rgb & 0b1111100000000000;   // Accumulate in-place,
+            green_sum += rgb & 0b0000011111100000; // no shift down needed
+            blue_sum += rgb & 0b0000000000011111;
+          }
+          yy2 += width; // Advance by one image row
+        }
+        red_sum = (red_sum / pixels_in_tile) & 0b1111100000000000;
+        green_sum = (green_sum / pixels_in_tile) & 0b0000011111100000;
+        blue_sum = (blue_sum / pixels_in_tile) & 0b0000000000011111;
+        rgb = __builtin_bswap16(red_sum | green_sum | blue_sum);
+        yy2 = y1 * width; // Index of first pixel in tile
+        for (xx = x1; xx <= x2; xx++) { // Overwrite top row of tile
+          pixels[yy2 + xx] = rgb;       // with averaged tile value
+        }
+        x1 += tile_width; // Advance pixel index by one tile column
+      }
+      // Duplicate scanlines to fill tiles on Y axis
+      yy1 = y1 * width;  // Index of first pixel in tile
+      yy2 = yy1 + width; // Index of pixel one row down
+      for(yy=y1+1; yy<=y2; yy++) { // Each subsequent pixel row in tiles...
+        memcpy(&pixels[yy2], &pixels[yy1], width * 2);
+        yy2 += width; // Advance destination index by one row
+      }
+      y1 += tile_height; // Advance pixel index by one tile row
+    }
+  } else {
+    // YUV is not handled yet because it's weird, with U & V
+    // on alternating pixels. This will require Some Doing.
   }
 }
 
