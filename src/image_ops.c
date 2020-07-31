@@ -67,26 +67,27 @@ void OV7670_image_posterize(OV7670_colorspace space, uint16_t *pixels,
   uint8_t lm1d2 = lm1 / 2;  // point interpolation
 
   if (space == OV7670_COLOR_RGB) {
-    if (levels >= 64) {
+    if (levels >= 32) {
       return;
     } else {
       // Good posterization requires a fair bit of fixed-point math.
-      // Rather than repeat all those steps over every pixel, and since
-      // RGB565 is already fairly quantized, lookup tables are generated
-      // instead, pixels get filtered through these.
-      uint16_t rtable[32], gtable[64], rgb;
+      // Rather than repeat all those steps over every pixel, lookup tables
+      // are generated first, and pixels are quickly filtered through these.
+      // Green is a special case here -- with RGB565 colors, the extra bit
+      // of green would make for posterization thresholds that are not
+      // uniform and may have weird halos. So the input is decimated to
+      // RGB555, posterized, and result scaled to RGB565.
+      uint16_t rtable[32], gtable[32], rgb;
       uint8_t  btable[32];
-      for(i=0; i<32; i++) { // 5 bits each for red & blue
+      for(i=0; i<32; i++) { // 5 bits each
         btable[i] = (((i * levels + lm1d2) / 32) * 31 + lm1d2) / lm1;
         rtable[i] = btable[i] << 11;
-      }
-      for(i=0; i<64; i++) { // 6 bits for green
-        gtable[i] = ((((i * levels + lm1d2) / 64) * 63 + lm1d2) / lm1) << 5;
+        gtable[i] = (btable[i] << 6) | ((btable[i] & 0x10) << 1);
       }
       for (i=0; i<num_pixels; i++) {        // For each pixel...
         rgb = __builtin_bswap16(pixels[i]); // Data from camera is big-endian
         // Dismantle RGB into components, remap each through color table
-        rgb = rtable[rgb >> 11] | gtable[(rgb >> 5) & 63] | btable[rgb & 31];
+        rgb = rtable[rgb >> 11] | gtable[(rgb >> 6) & 31] | btable[rgb & 31];
         pixels[i] = __builtin_bswap16(rgb); // Back to big-endian
       }
     }
