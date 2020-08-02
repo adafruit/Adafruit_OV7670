@@ -187,16 +187,45 @@ void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
   }
 }
 
+// Preprocess one scanline in preparation for median filter. Input pixels
+// are separated into red, green, blue components for quicker access during
+// the median calculations. Destination buffer has 2 extra/ pixels (1 ea.
+// left and right), edge pixels are duplicated to allow median to operate
+// on all image pixels, no black border or other uglies.
+static void OV7670_median_row_prep(uint16_t *src, uint8_t *r_dst,
+                                   uint16_t width) {
+  uint8_t *g_dst = &r_dst[width + 2]; // +2 for left & right pixels
+  uint8_t *b_dst = &g_dst[width + 2];
+  uint16_t x, rgb;
+  for (x = 1; x <= width; x++) {      // Index in dest bufs (skip 1st, last)
+    rgb = __builtin_bswap16(*src++);  // Packed RGB565 pixel
+    r_dst[x] = rgb >> 11;             // Extract 5 bits red,
+    g_dst[x] = (rgb >> 5) & 0x3F;     // 6 bits green,
+    b_dst[x] = rgb & 0x1F;            // 5 bits blue
+  }
+  r_dst[0] = r_dst[1];                // Duplicate leftmost pixel
+  g_dst[0] = g_dst[1];
+  b_dst[0] = b_dst[1];
+  r_dst[width + 1] = r_dst[width];    // Duplicate rightmost pixel
+  g_dst[width + 1] = g_dst[width];
+  b_dst[width + 1] = b_dst[width];
+}
+
 // 3x3 median filter. WIP.
 void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
                          uint16_t width, uint16_t height) {
   if (space == OV7670_COLOR_RGB) {
+    // Working buffer for three pixel rows: above, current, and below.
+    // Each scanline has an extra pixel left and right, and are separated
+    // into red, green and blue components so we don't need to do bit
+    // masking/shifting every time a pixel is accessed.
     uint8_t *buf;
-    if ((buf = (uint8_t *)malloc(width * 3 * 3))) { // 3 rows, each R,G,B
+    if ((buf = (uint8_t *)malloc((width + 2) * 3 * 3))) {
+      uint16_t y;
 
-      // DO MEDIAN MAGIC HERE
-      // Pixel rows will need to be decomposed into separate R,G,B
-      // Edge function below might want to do something similar
+      for(y = 0; y < height; y++) {
+        // DO MEDIAN MAGIC HERE
+      }
 
       free(buf);
     }
