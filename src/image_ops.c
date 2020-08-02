@@ -191,40 +191,159 @@ void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
 // are separated into red, green, blue components for quicker access during
 // the median calculations. Destination buffer has 2 extra/ pixels (1 ea.
 // left and right), edge pixels are duplicated to allow median to operate
-// on all image pixels, no black border or other uglies.
+// on all image pixels, no black border or other uglies. Pixels within each
+// channel are not sequential in memory, but increment by threes --
+// corresponding to the prior, current and next rows.
 static void OV7670_median_row_prep(uint16_t *src, uint8_t *r_dst,
-                                   uint16_t width) {
-  uint8_t *g_dst = &r_dst[width + 2]; // +2 for left & right pixels
-  uint8_t *b_dst = &g_dst[width + 2];
-  uint16_t x, rgb;
-  for (x = 1; x <= width; x++) {      // Index in dest bufs (skip 1st, last)
-    rgb = __builtin_bswap16(*src++);  // Packed RGB565 pixel
-    r_dst[x] = rgb >> 11;             // Extract 5 bits red,
-    g_dst[x] = (rgb >> 5) & 0x3F;     // 6 bits green,
-    b_dst[x] = rgb & 0x1F;            // 5 bits blue
+                                   uint16_t width, uint32_t channel_bytes) {
+  uint8_t *g_dst = &r_dst[channel_bytes];
+  uint8_t *b_dst = &g_dst[channel_bytes];
+
+  uint16_t x, rgb, offset = 3;
+  for (x = 0; x < width; x++) {        // For each pixel in row...
+    rgb = __builtin_bswap16(*src++);   // Packed RGB565 pixel
+    r_dst[offset] = rgb >> 11;         // Extract 5 bits red,
+    g_dst[offset] = (rgb >> 5) & 0x3F; // 6 bits green,
+    b_dst[offset] = rgb & 0x1F;        // 5 bits blue
+    offset += 3;
   }
-  r_dst[0] = r_dst[1];                // Duplicate leftmost pixel
-  g_dst[0] = g_dst[1];
-  b_dst[0] = b_dst[1];
-  r_dst[width + 1] = r_dst[width];    // Duplicate rightmost pixel
-  g_dst[width + 1] = g_dst[width];
-  b_dst[width + 1] = b_dst[width];
+  r_dst[0] = r_dst[3];                 // Duplicate leftmost pixel
+  g_dst[0] = g_dst[3];
+  b_dst[0] = b_dst[3];
+  x = offset - 3;
+  r_dst[offset] = r_dst[x];            // Duplicate rightmost pixel
+  g_dst[offset] = g_dst[x];
+  b_dst[offset] = b_dst[x];
+}
+
+static void OV7670_median_row_copy(uint8_t *r_src, uint8_t *r_dst,
+                                   uint16_t width, uint32_t channel_bytes) {
+  uint8_t *g_src = &r_src[channel_bytes];
+  uint8_t *b_src = &g_src[channel_bytes];
+  uint8_t *g_dst = &r_dst[channel_bytes];
+  uint8_t *b_dst = &g_dst[channel_bytes];
+  uint16_t x, offset;
+
+  for (x = offset = 0; x < width; x++, offset += 3) {
+    r_dst[offset] = r_src[offset];
+    g_dst[offset] = g_src[offset];
+    b_dst[offset] = b_src[offset];
+  }
+}
+
+// 9-element median-finder
+static inline uint8_t OV7670_med9(uint8_t *list) {
+
+#if 1
+
+  // Find median value in a list of 9 (index 0 to 8). Ostensibly,
+  // conceptually, this would involve sorting the list (ascending or
+  // descending, doesn't matter) and returning the value at index 4.
+  // Reality is simpler, it's sufficient to take the max of the 5
+  // lowest values (or min of the 5 highest), same result. To help
+  // exploit spatial coherence in the image (6 of the 9 values will
+  // carry over from one pixel to the next), we don't want to sort or
+  // modify the list. Making a copy of the list is one option.
+  // Different option, used here, is to maintain a bitmask of all 9
+  // 'available' list positions and clear bits as each of the 5
+  // minimums is found (returning the last one).
+
+  uint16_t min;
+  uint8_t min_idx, i, n;
+  uint16_t active_mask = ~0; // Bitmask of active values (initially all set)
+  for (n = 0; n < 5; n++) {  // Make 5 passes...
+    min = ~0;                //   To force initial select of 1st active value
+    for(i = 0; i < 9; i++) { //   For each of 9 values...
+      // If value #i is less than min and that spot's still active...
+      if((list[i] < min) && (active_mask & (1 << i))) {
+        min = list[i];       //     Save value of new minimum
+        min_idx = i;         //     Save index of new minimum
+      }
+    }
+    active_mask &= ~(1 << min_idx); // Take element min_idx out of running
+  }
+
+  return min;
+
+#else
+
+  // Find median value in a list of 9 (index 0 to 8). Ostensibly,
+  // conceptually, this would involve sorting the list (ascending or
+  // descending, doesn't matter) and returning the value at index 4.
+  // Reality is simpler, it's sufficient to take the max of the 5
+  // lowest values (or min of the 5 highest), same result. A copy of
+  // the input list is made so elements can be moved/copied without
+  // corrupting the original (needed to exploit spatial coherence in
+  // the image).
+
+  uint8_t n, i, min, min_idx;
+  uint8_t buf[9];
+  memcpy(buf, list, 9);
+
+  for (n = 0; n < 5; n++) {     // 5 min-finding passes
+    min = buf[n];               //   Initial min guess...
+    min_idx = n;                //   is at index 'n' (0-4)
+    for (i = n + 1; i<9; i++) { //   Compare through end of list...
+      if (buf[i] < min) {       //     Keep track of
+        min = buf[i];           //     min value and
+        min_idx = i;            //     index of min in list
+      }
+    }
+    // Item at min_idx is the nth-least value in list and no longer in
+    // the running for subsequent passes...replace value currently in
+    // that position with the value at position n (no swap needed).
+    // In some cases this will move a value to itself, that's fine.
+    buf[min_idx] = buf[n];
+  }
+
+  return min; // min of 5th pass (max of 5 least values)
+
+#endif
 }
 
 // 3x3 median filter. WIP.
+// Needs 3615 bytes RAM overhead for 320x240 image.
 void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
                          uint16_t width, uint16_t height) {
   if (space == OV7670_COLOR_RGB) {
-    // Working buffer for three pixel rows: above, current, and below.
-    // Each scanline has an extra pixel left and right, and are separated
-    // into red, green and blue components so we don't need to do bit
-    // masking/shifting every time a pixel is accessed.
     uint8_t *buf;
-    if ((buf = (uint8_t *)malloc((width + 2) * 3 * 3))) {
-      uint16_t y;
+    uint32_t buf_bytes_per_channel = (width + 2) * 3 + height - 1;
+    if ((buf = (uint8_t *)malloc(buf_bytes_per_channel * 3))) {
+      uint8_t *rptr = buf;                          // -> red buffer
+      uint8_t *gptr = &rptr[buf_bytes_per_channel]; // -> green buffer
+      uint8_t *bptr = &gptr[buf_bytes_per_channel]; // -> blue buffer
 
+        // Process pixel data into current row buffer
+        OV7670_median_row_prep(pixels, &rptr[1], width, buf_bytes_per_channel);
+        // Copy pixel data from first row to prior row buffer
+        OV7670_median_row_copy(&rptr[1], rptr, width + 2,
+                               buf_bytes_per_channel);
+
+      uint16_t x, y, *ptr = pixels;
       for(y = 0; y < height; y++) {
-        // DO MEDIAN MAGIC HERE
+        if (y < (height - 1)) {
+          // Load pixel data into next row position
+          OV7670_median_row_prep(&pixels[(y + 1) * width],
+            &rptr[2], width, buf_bytes_per_channel);
+        } else {
+          // Last row, copy current row data to next row
+          OV7670_median_row_copy(&rptr[1], &rptr[2], width + 2,
+                                 buf_bytes_per_channel);
+        }
+
+        uint8_t r_med, g_med, b_med;
+        uint8_t offset;
+        uint16_t rgb;
+        for (x = offset = 0; x < width; x++, offset += 3) {
+          r_med = OV7670_med9(&rptr[offset]);
+          g_med = OV7670_med9(&gptr[offset]);
+          b_med = OV7670_med9(&bptr[offset]);
+          rgb = (r_med << 11) | (g_med << 5) | b_med;
+          *ptr++ = __builtin_bswap16(rgb);
+        }
+        rptr++; // Next row
+        gptr++;
+        bptr++;
       }
 
       free(buf);
