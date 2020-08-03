@@ -392,6 +392,9 @@ void OV7670_night(void *platform, OV7670_night_mode night) {
 // Note: datasheet refers to horizontal flip as "mirroring," but
 // avoiding that terminology here that it might be mistaken for a
 // split-down-middle-and-reflect funhouse effect, which it isn't.
+// Also note: mirrored image isn't always centered quite the same,
+// looks like frame control settings might need to be tweaked
+// depending on flips. Similar issue to color bars?
 void OV7670_flip(void *platform, bool flip_x, bool flip_y) {
   // Read current MVFP register setting, so we don't corrupt any
   // reserved bits or the "black sun" bit if it was previously set.
