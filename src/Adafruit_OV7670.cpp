@@ -73,7 +73,7 @@ OV7670_status Adafruit_OV7670::begin(OV7670_colorspace colorspace,
     return OV7670_STATUS_ERR_MALLOC;
   }
 
-  arch_begin(colorspace, size, fps); // Device-specific setup
+  return arch_begin(colorspace, size, fps); // Device-specific setup
 }
 
 int Adafruit_OV7670::readRegister(uint8_t reg) {

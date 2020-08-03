@@ -136,6 +136,7 @@ void loop() {
   //cam.image_threshold(150);
   //cam.image_posterize(5);
   //cam.image_mosaic(21, 9);
+  //cam.image_median();
 
   if(CAM_MODE == OV7670_COLOR_YUV) {
     cam.Y2RGB565(); // Convert grayscale for TFT preview

@@ -284,7 +284,6 @@ public:
             This is a postprocessing effect, not in-camera, and must be
             applied to frame(s) manually. Image in memory will be
             overwritten.
-            NOT YET IMPLEMENTED.
   */
   void image_median(void) {
     OV7670_image_median(space, buffer, _width, _height);
