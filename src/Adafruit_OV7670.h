@@ -283,7 +283,7 @@ public:
     @brief  3x3 pixel median filter, reduces visual noise in image.
             This is a postprocessing effect, not in-camera, and must be
             applied to frame(s) manually. Image in memory will be
-            overwritten.
+            overwritten. YUV colorspace is not currently supported.
   */
   void image_median(void) {
     OV7670_image_median(space, buffer, _width, _height);
@@ -293,11 +293,10 @@ public:
     @brief  Edge detection filter.
             This is a postprocessing effect, not in-camera, and must be
             applied to frame(s) manually. Image in memory will be
-            overwritten.
-            NOT YET IMPLEMENTED.
+            overwritten. YUV colorspace is not currently supported.
     @param  sensitivity  Smaller value = more sensitive to edge changes.
   */
-  void image_edges(uint8_t sensitivity = 4) {
+  void image_edges(uint8_t sensitivity = 7) {
     OV7670_image_edges(space, buffer, _width, _height, sensitivity);
   };
 

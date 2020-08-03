@@ -261,7 +261,7 @@ void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
 // median to operate on all source image pixels, no black border or other
 // uglies. Pixels within each channel are not sequential in memory, but
 // increment by 3's -- corresponding to the prior, current and next rows.
-static void OV7670_median_row_prep(uint16_t *src, uint8_t *r_dst,
+static void OV7670_filter_row_prep(uint16_t *src, uint8_t *r_dst,
                                    uint16_t width, uint32_t channel_bytes) {
   uint8_t *g_dst = &r_dst[channel_bytes];
   uint8_t *b_dst = &g_dst[channel_bytes];
@@ -284,7 +284,7 @@ static void OV7670_median_row_prep(uint16_t *src, uint8_t *r_dst,
 }
 
 // Copy a single row in the median code's weird increment-by-3 pixel format.
-static void OV7670_median_row_copy(uint8_t *r_src, uint8_t *r_dst,
+static void OV7670_filter_row_copy(uint8_t *r_src, uint8_t *r_dst,
                                    uint16_t width, uint32_t channel_bytes) {
   uint8_t *g_src = &r_src[channel_bytes];
   uint8_t *b_src = &g_src[channel_bytes];
@@ -396,11 +396,11 @@ void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
       // for the above, current, and below rows, respectively.
 
       // Convert pixel data into the initial 'current' (1) row buf
-      OV7670_median_row_prep(pixels, &rptr[1], width, buf_bytes_per_channel);
+      OV7670_filter_row_prep(pixels, &rptr[1], width, buf_bytes_per_channel);
 
       // Copy pixel data from the initial (1) row to the prior (0) row buf
       // (Because edge pixels are repeated so we can 3x3 filter full image)
-      OV7670_median_row_copy(&rptr[1], rptr, width + 2, buf_bytes_per_channel);
+      OV7670_filter_row_copy(&rptr[1], rptr, width + 2, buf_bytes_per_channel);
 
       uint16_t *ptr = pixels; // Dest pointer, back into source image
       uint16_t x, y, offset, rgb;
@@ -409,12 +409,12 @@ void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
         // Set up 'below' row buffer...
         if (y < (height - 1)) { // If current row is 0 to height-2
           // Convert pixel data into the 'next' (2) row buf
-          OV7670_median_row_prep(&pixels[(y + 1) * width], &rptr[2], width,
+          OV7670_filter_row_prep(&pixels[(y + 1) * width], &rptr[2], width,
                                  buf_bytes_per_channel);
         } else { // Last row, y = height-1
           // Copy pixel data from current (1) row to next (2) row buf
           // (Edge pixels are repeated so we can 3x3 filter full image)
-          OV7670_median_row_copy(&rptr[1], &rptr[2], width + 2,
+          OV7670_filter_row_copy(&rptr[1], &rptr[2], width + 2,
                                  buf_bytes_per_channel);
         }
 
@@ -439,77 +439,76 @@ void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
 
 // EDGE DETECTION -----------------------------------------------------------
 
-// WIP.
+// Edge detection borrows a lot of code from the median function above...
+// same peculiar looped image format, primary change is just the function
+// called in the per-pixel loop.
+
+// Detect edges in 3x3 pixel square.
+static inline bool OV7670_edge9(uint8_t *list, uint8_t sensitivity) {
+  int8_t center = (int16_t)list[4];                 // Must be signed!
+  return ((abs(center - list[1]) >= sensitivity) || // left
+          (abs(center - list[3]) >= sensitivity) || // up
+          (abs(center - list[5]) >= sensitivity) || // down
+          (abs(center - list[7]) >= sensitivity));  // right
+}
+
 void OV7670_image_edges(OV7670_colorspace space, uint16_t *pixels,
                         uint16_t width, uint16_t height, uint8_t sensitivity) {
-  uint16_t x, y, a, b, foo;
-  uint16_t buf[320];
-  int32_t rgbleft, rgbright, rgb;
 
-  // To do: buffer 3 lines of image, cycle through them,
-  // Perform edge math on both horizontal and vertical axes
-
-#if 0
   if (space == OV7670_COLOR_RGB) {
-    uint32_t bufpixels = (width + 2) * 3;
-    uint16_t *buf = (uint16_t *)malloc(bufpixels * sizeof(uint16_t));
-    if (buf) {
-      for(uint32_t i=0; i<bufpixels; i++) {
-        buf[i] = 0b0111101111101111; // Neutral 50% brightness
-      }
-      uint16_t *bptr[3]; // trailing, current, leading pointers
-      bptr[0] = buf;
-      bptr[1] = &buf[width + 2];
-      bptr[2] = &buf[(width + 2) * 2];
-      memcpy(&bptr[1][1], pixels, width * 2);
-      memcpy(&bptr[2][1], &pixels[width], width * 2);
+    uint8_t *buf;
+    uint32_t buf_bytes_per_channel = (width + 2) * 3 + height - 1;
+    if ((buf = (uint8_t *)malloc(buf_bytes_per_channel * 3))) {
+      uint8_t *rptr = buf;                          // -> red buffer
+      uint8_t *gptr = &rptr[buf_bytes_per_channel]; // -> green buffer
+      uint8_t *bptr = &gptr[buf_bytes_per_channel]; // -> blue buffer
 
-      for(uint16_t y=0; y<height; y++) {
-        // memcpy row in, or fill with neutral color if last row
-        if (y < (height - 1)) {
-          // memcpy
-        } else {
-          // fill
+      // For each of the three channel pointers (rptr, gptr, bptr),
+      // ptr[0] is the first pixel of the row ABOVE the current one,
+      // ptr[1] is the first pixel of the current row (0 to height-1),
+      // ptr[2] is the first pixel of the row BELOW the current one.
+      // Horizontal pixel addresses then increment by 3's...for each
+      // column (x) in row, pixel x = ptr[x * 3 + n], where n is 0, 1, 2
+      // for the above, current, and below rows, respectively.
+
+      // Convert pixel data into the initial 'current' (1) row buf
+      OV7670_filter_row_prep(pixels, &rptr[1], width, buf_bytes_per_channel);
+
+      // Copy pixel data from the initial (1) row to the prior (0) row buf
+      // (Because edge pixels are repeated so we can 3x3 filter full image)
+      OV7670_filter_row_copy(&rptr[1], rptr, width + 2, buf_bytes_per_channel);
+
+      uint8_t s2 = sensitivity * 2; // Because green has extra bit
+
+      uint16_t *ptr = pixels; // Dest pointer, back into source image
+      uint16_t x, y, offset, rgb;
+      for (y = 0; y < height; y++) { // For each row of image...
+        // Set up 'below' row buffer...
+        if (y < (height - 1)) { // If current row is 0 to height-2
+          // Convert pixel data into the 'next' (2) row buf
+          OV7670_filter_row_prep(&pixels[(y + 1) * width], &rptr[2], width,
+                                 buf_bytes_per_channel);
+        } else { // Last row, y = height-1
+          // Copy pixel data from current (1) row to next (2) row buf
+          // (Edge pixels are repeated so we can 3x3 filter full image)
+          OV7670_filter_row_copy(&rptr[1], &rptr[2], width + 2,
+                                 buf_bytes_per_channel);
         }
 
-        // DO EDGE MAGIC HERE
-
-        uint16_t *tmp = bptr[0];
-        bptr[0] = btr[1];
-        bptr[1] = bptr[2];
-        bptr[2] = tmp;
+        for (x = offset = 0; x < width; x++, offset += 3) {
+          rgb = ((OV7670_edge9(&rptr[offset], sensitivity) * 0xF800) |
+                 (OV7670_edge9(&gptr[offset], s2) * 0x07E0) |
+                 (OV7670_edge9(&bptr[offset], sensitivity) * 0x001F));
+          *ptr++ = __builtin_bswap16(rgb);
+        }
+        rptr++; // Next row
+        gptr++;
+        bptr++;
       }
+
       free(buf);
     }
   } else { // YUV
-  }
-#endif
-
-  // Nasty kludgey test WIP
-
-  for (y = 0; y < height; y++) {
-    memcpy(buf, &pixels[y * width], width * 2);
-    for (x = 1; x < width - 1; x++) {
-      rgbleft = (int32_t)__builtin_bswap16(buf[x - 1]);
-      rgb = (int32_t)__builtin_bswap16(buf[x]);
-      rgbright = (int32_t)__builtin_bswap16(buf[x + 1]);
-      foo = 0;
-      a = abs((rgbleft >> 11) - (rgb >> 11));
-      b = abs((rgbright >> 11) - (rgb >> 11));
-      if ((a >= 4) || (b >= 4)) {
-        foo |= 0b1111100000000000;
-      }
-      a = abs(((rgbleft >> 5) & 63) - ((rgb >> 5) & 63));
-      b = abs(((rgbright >> 5) & 63) - ((rgb >> 5) & 63));
-      if ((a >= 8) || (b >= 8)) {
-        foo |= 0b0000011111100000;
-      }
-      a = abs((rgbleft & 31) - (rgb & 31));
-      b = abs((rgbright & 31) - (rgb & 31));
-      if ((a >= 4) || (b >= 4)) {
-        foo |= 0b0000000000011111;
-      }
-      pixels[y * width + x] = __builtin_bswap16(foo);
-    }
+    // Not yet supported. Tricky because of alternating U/V pixels.
   }
 }

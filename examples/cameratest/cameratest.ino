@@ -134,9 +134,10 @@ void loop() {
   // image in memory, they are NOT in-camera effects.
   //cam.image_negative();
   //cam.image_threshold(150);
-  //cam.image_posterize(5);
-  //cam.image_mosaic(21, 9);
+  //cam.image_posterize(5);  // # of levels
+  //cam.image_mosaic(21, 9); // Tile width, height
   //cam.image_median();
+  //cam.image_edges(4);      // 0-31, smaller = more edges
 
   if(CAM_MODE == OV7670_COLOR_YUV) {
     cam.Y2RGB565(); // Convert grayscale for TFT preview
