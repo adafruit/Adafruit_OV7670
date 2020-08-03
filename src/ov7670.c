@@ -202,6 +202,8 @@ OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace colorspace,
   OV7670_set_size(host->platform, size);          // Frame size
 
   OV7670_delay_ms(300); // tS:REG = 300 ms (settling time = 10 frames)
+
+  return OV7670_STATUS_OK;
 }
 
 // MISCELLANY AND CAMERA CONFIG FUNCTIONS ----------------------------------
