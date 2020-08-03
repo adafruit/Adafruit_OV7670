@@ -132,6 +132,7 @@ void loop() {
 
   // Postprocessing effects. These modify a previously-captured
   // image in memory, they are NOT in-camera effects.
+  // Most only work in RGB mode (not YUV).
   //cam.image_negative();
   //cam.image_threshold(150);
   //cam.image_posterize(5);  // # of levels
