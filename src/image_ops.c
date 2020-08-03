@@ -242,7 +242,7 @@ void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
 //       __|__/_/_/_/_/|__
 //      |____/_/_/_/_/____|     -> +X = increment by 3
 //         |/ / / / /  |      |
-//                     |      V    +y = increment by 1
+//                     |      V    +Y = increment by 1
 //                     |
 //                     N <- last byte in buffer
 //
