@@ -367,6 +367,13 @@ void OV7670_set_size(void *platform, OV7670_size size) {
 
 // Select one of the camera's night modes (or disable).
 // Trades off frame rate for less grainy images in low light.
+// Note: seems that frame rate is somewhat automatic despite
+//       the requested setting, i.e. if 1:8 is selected, might
+//       still get normal frame rate or something higher than
+//       1:8, if the scene lighting permits. Also the setting
+//       seems to 'stick' in some cases when trying to turn
+//       this off. Might want to try always having night mode
+//       enabled but using 1:1 frame setting as 'off'.
 void OV7670_night(void *platform, OV7670_night_mode night) {
   // Table of bit patterns for the different supported night modes.
   // There's a "same frame rate" option for OV7670 night mode but it
@@ -385,6 +392,9 @@ void OV7670_night(void *platform, OV7670_night_mode night) {
 // Note: datasheet refers to horizontal flip as "mirroring," but
 // avoiding that terminology here that it might be mistaken for a
 // split-down-middle-and-reflect funhouse effect, which it isn't.
+// Also note: mirrored image isn't always centered quite the same,
+// looks like frame control settings might need to be tweaked
+// depending on flips. Similar issue to color bars?
 void OV7670_flip(void *platform, bool flip_x, bool flip_y) {
   // Read current MVFP register setting, so we don't corrupt any
   // reserved bits or the "black sun" bit if it was previously set.

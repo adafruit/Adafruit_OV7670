@@ -213,14 +213,15 @@ public:
                      OV7670_TEST_PATTERN_COLOR_BAR_FADE
                        Eight color bars with fade to white.
     @note   This basically works but has some artifacts...color bars are
-            wrapped around such that a few pixels of the rightmost (white)
-            bar appear at the left of the leftmost (black) bar. It seems
-            that the frame control settings need to be slightly different
-            for image sensor vs test patterns (frame control that displays
-            the bars correctly has green artifacts along right edge when
-            using image sensor). Eventually will want to make this handle
-            the different cases and sizes correctly. In the meantime,
-            there's minor uglies in test mode.
+            wrapped around such that a few pixels of the leftmost (white)
+            bar appear at to the right of the rightmost (black) bar. It
+            seems that the frame control settings need to be slightly
+            different for image sensor vs test patterns (frame control
+            that displays the bars correctly has green artifacts along
+            right edge when using image sensor). Eventually will want to
+            make this handle the different cases and sizes correctly.
+            In the meantime, there's minor uglies in test mode.
+            Similar issue occurs with image flips.
   */
   void test_pattern(OV7670_pattern pattern) {
     OV7670_test_pattern(this, pattern);

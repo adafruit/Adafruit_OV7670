@@ -190,13 +190,14 @@ void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
 // 3X3 MEDIAN FILTER --------------------------------------------------------
 
 // A median filter helps reduce pixel "snow" in an image while keeping
-// larger features intact. It's sometimes helpful before edge detection.
-// The process is pretty heinous (every pixel in an image is reassigned
-// the median value of itself and 8 neighboring pixels -- separately for
-// red, green and blue). The implementation here duplicates edge pixels
-// so output size matches input size (no black border or other uglies).
-// A few Clever Tricks(tm) are employed to try to speed up the median
-// calculations...
+// larger features intact. The process is pretty heinous (every pixel in
+// an image is reassigned the median value of itself and 8 neighboring
+// pixels -- separately for red, green and blue). The implementation here
+// duplicates edge pixels so output size matches input size (no black
+// border or other uglies). A few Clever Tricks(tm) are employed to try
+// to speed up the median calculations (the edge detect filter borrows a
+// lot of this too, and potentially any other 3x3 filters added later)...
+//
 // - A buffer is allocated and three rows of the image are unpacked from
 //   RGB565 format into separate red, green and blue channels, to reduce
 //   the number of bit-masking and shifting operations needed when
@@ -204,10 +205,15 @@ void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
 //   the image -- the 'current' row becomes the 'prior' row, the 'next'
 //   row becomes the 'current' row, and a new 'next' row is converted.
 //   Requires about 3.6K RAM overhead for a 320x240 pixel image.
-// - The format of these rows is Truly Strange, to help exploit spatial
-//   coherence. For any two adjacent pixels, six of nine values used in
-//   median determination are the same. Still requires evaluating all
-//   nine pixels, but we don't have to load up all nine bins every time.
+//   Having these row buffers also means results can be written directly
+//   back into the 'current' row of the image without corrupting the
+//   results of 3x3 operations on the subsequent row.
+//
+// - The format of these rows is Truly Strange, to simplify inner loops
+//   and potentially to help exploit spatial coherence (though not really
+//   done here, but possible). For any two adjacent pixels, six of nine
+//   values used are the same. May still require evaluating all nine
+//   pixels, but we don't have to load up all nine bins every time.
 //   Instead of the three rows being in the typical row-major format:
 //      0  1  2  3  4  5
 //      6  7  8  9 10 11
@@ -216,47 +222,62 @@ void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
 //      0  3  6  9 12 15
 //      1  4  7 10 13 16
 //      2  5  8 11 14 17
-//   Loading up the 3x3 median list while increasing X by 1 along the row
+//   Loading up the 3x3 pixel list while increasing X by 1 along the row
 //   then just involves incrementing an index or pointer by 3's...the data
-//   stays in-place, rather than individually copying 3x3 pixels to a
-//   working buffer.
+//   stays in-place, rather than individually copying nine pixels from
+//   image space to a working buffer. That is, rather than the 9 pixels
+//   around pixel 'p[x,y]' involving the following (where 'y-1' and 'y+1'
+//   each require a multiply by the image width, because of the row-major
+//   format):
+//     p[x-1,y-1] p[x,y-1] p[x+1,y-1]
+//     p[x-1,y]   p[x,y]   p[x+1,y]
+//     p[x-1,y+1] p[x,y+1] p[x+1,y+1]
+//   The nine pixels are instead addressed as:
+//     p[0] p[3] p[6]
+//     p[1] p[4] p[7]
+//     p[2] p[5] p[8]
+//   It takes some cycles to initially noodle an image into this format,
+//   but the payoff is avoiding all those extra multiplies and adds inside
+//   inner loops (as a filter works across each row).
 //   Weirder though...to increment to the next row, rather than moving the
 //   'current' row data to the 'prior' row and the 'next' row data into the
 //   'current' row (or keeping a circular set of 3 pointers/indices), the
 //   pixel buffer has a 'tail' such that we only need to increment the
 //   buffer start index by 1, then reload the new 'next' row data (with
-//   the pixel indices incrementing by 3).
-//   If it helps to visualize this, picture you have a string coiled around
-//   a wooden rod. The rod has a circumference of exactly 3 pixels...so,
-//   coiling the string around it, all the pixels in each of the 3 rows are
-//   aligned, and the horizontal pixel positions in the buffer will
-//   increment by 3's. Turning the rod 1/3 turn (1 pixel) cycles all the
-//   rows, and a new row can be loaded affecting just those pixels (by 3's).
-//   The 'head' and 'tail' on this string (equal to the image height) let
-//   us make the vertical change without having to move or copy any
-//   existing data to new locations, just load the new bytes. That's why
-//   the buffer allocation is somewhat more than (width * 3).
+//   the pixel indices incrementing by 3), nothing else moves or changes.
+//   If it helps to visualize this, picture you have a string (representing
+//   our pixel noodle buffer) coiled around a wooden rod. The rod has a
+//   circumference of exactly 3 pixels...so, coiling the string around it,
+//   all the pixels in each of the 3 rows are aligned, and the horizontal
+//   pixel positions in the buffer will increment by 3's. Turning the rod
+//   1/3 turn (1 pixel) cycles all the rows, and a new row can be loaded
+//   affecting just those pixels (by 3's). The 'head' and 'tail' on this
+//   string (equal to the image height) let us make the vertical change
+//   without having to move or copy any existing data to new locations,
+//   just load the new bytes. That's why the buffer allocation is somewhat
+//   more than (width * 3).
 //
 //         0 <- first byte in buffer
 //         |
 //       __|__/_/_/_/_/|__
-//      |____/_/_/_/_/____|     -> +X = increment by 3
+//      |____/_/_/_/_/____|     -> +X = column = increment by 3
 //         |/ / / / /  |      |
-//                     |      V    +Y = increment by 1
+//                     |      V    +Y = row = increment by 1
 //                     |
 //                     N <- last byte in buffer
 //
 //
-// - Finding the median in a 9-element (3x3) list doesn't require sorting
-//   the list. It's sufficient to identify the maximum of the least five
-//   values, or minimum of largest five, same result all around.
+// - Back to the median filter specifically: finding the median in a
+//   9-element (3x3) list doesn't require sorting the whole list as is
+//   typically described. It's sufficient to identify the maximum of the
+//   least five values, or minimum of largest five, same result all around.
 //
 // Thank you for coming to my TED Talk.
 
-// Preprocess one row of pixels in preparation for median filter. Input
-// pixels are separated into red, green, blue buffers for quicker access
-// during the median calculations (avoids masking/shifting every time a
-// pixel is accessed for comparison). Destination buffer has 2 extra
+// Preprocess one row of pixels in preparation for one of the 3x3 filters.
+// Input pixels are separated into red, green, blue buffers for quicker
+// access during the median calculations (avoids masking/shifting every
+// time a pixel is accessed for comparison). Destination buffer has 2 extra
 // pixels (1 ea. left and right), as edge pixels are duplicated to allow
 // median to operate on all source image pixels, no black border or other
 // uglies. Pixels within each channel are not sequential in memory, but
@@ -283,7 +304,7 @@ static void OV7670_filter_row_prep(uint16_t *src, uint8_t *r_dst,
   b_dst[offset] = b_dst[x];
 }
 
-// Copy a single row in the median code's weird increment-by-3 pixel format.
+// Copy a single row in the 3x3 filter weird increment-by-3 pixel format.
 static void OV7670_filter_row_copy(uint8_t *r_src, uint8_t *r_dst,
                                    uint16_t width, uint32_t channel_bytes) {
   uint8_t *g_src = &r_src[channel_bytes];
@@ -302,21 +323,25 @@ static void OV7670_filter_row_copy(uint8_t *r_src, uint8_t *r_dst,
 // Determine median value of 9-element list
 static inline uint8_t OV7670_med9(uint8_t *list) {
 
-  // Testing a couple of approaches here...
-
-#if 0 // Might be a tiny bit faster at higher optimization settings
-
   // Find median value in a list of 9 (index 0 to 8). Ostensibly,
   // conceptually, this would involve sorting the list (ascending or
   // descending, doesn't matter) and returning the value at index 4.
   // Reality is simpler, it's sufficient to take the max of the 5
-  // lowest values (or min of the 5 highest), same result. To help
-  // exploit spatial coherence in the image (6 of the 9 values will
-  // carry over from one pixel to the next), we don't want to sort or
-  // modify the list. Making a copy of the list is one option.
-  // Different option, used here, is to maintain a bitmask of all 9
-  // 'available' list positions and clear bits as each of the 5
-  // minimums is found (returning the last one).
+  // lowest values (or min of the 5 highest), same result.
+
+  // Testing a couple of approaches here. Consider also, instead of
+  // having these in an inline function, do this directly in the
+  // median inner loop, with separate red/green/blue variables --
+  // should entail fewer loop iterations overall.
+
+#if 0 // Might be a tiny bit faster at higher optimization settings
+
+  // Need to preserve initial pixel values -- 6 of 9 will carry over
+  // from one pixel to the next, so don't modify or sort the pixels
+  // in-place. Making a copy of the list is one option. Different
+  // option, used here, is to maintain a bitmask of all 9 'available'
+  // list positions and clear bits as each of the 5 minimums is found
+  // (returning the last one).
 
   uint16_t min;
   uint8_t min_idx, i, n;
@@ -337,14 +362,10 @@ static inline uint8_t OV7670_med9(uint8_t *list) {
 
 #else // Might be faster at 'normal' optimization settings
 
-  // Ostensibly, conceptually, this would involve sorting the 9-element
-  // list (ascending or descending, doesn't matter) and returning the value
-  // at index 4. Reality is simpler, it's sufficient to take the max of the
-  // 5 lowest values (or min of the 5 highest), same result.
-
-  // A copy of the input list is made so elements can be shuffled
-  // without corrupting the original -- must maintain that in order
-  // to exploit spatial coherence in the median loop.
+  // Need to preserve initial pixel values -- 6 of 9 will carry over
+  // from one pixel to the next, so don't modify or sort the pixels
+  // in-place. A copy of the input list is made so elements can be
+  // shuffled without corrupting the original.
   uint8_t buf[9];
   memcpy(buf, list, 9);
 
@@ -443,7 +464,10 @@ void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
 // same peculiar looped image format, primary change is just the function
 // called in the per-pixel loop.
 
-// Detect edges in 3x3 pixel square.
+// Detect edges in 3x3 pixel square. Evaluates difference between current
+// pixel and the four pixels above, below, left and right, sets result 'on'
+// if any of those 4 exceeds a given threshold. Note to future self: might
+// instead evaluate sum-of-four rather than any-of-four.
 static inline bool OV7670_edge9(uint8_t *list, uint8_t sensitivity) {
   int8_t center = (int16_t)list[4];                 // Must be signed!
   return ((abs(center - list[1]) >= sensitivity) || // left
@@ -452,6 +476,9 @@ static inline bool OV7670_edge9(uint8_t *list, uint8_t sensitivity) {
           (abs(center - list[7]) >= sensitivity));  // right
 }
 
+// Edge detection filter. Requires a chunk of RAM temporarily,
+// ((width + 2) * 3 + height - 1) * 3 bytes, or about 3.6K for a
+// 320x240 RGB image. YUV is not currently supported.
 void OV7670_image_edges(OV7670_colorspace space, uint16_t *pixels,
                         uint16_t width, uint16_t height, uint8_t sensitivity) {
 
