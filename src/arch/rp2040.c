@@ -130,16 +130,3 @@ void OV7670_capture(uint16_t *dest, uint16_t width, uint16_t height,
 // Also see notes at top regarding pin MUXing in this file.
 
 #endif // end PICO_SDK_VERSION_MAJOR
-
-// Notes from past self: early version of this code that I adopted used
-// GCLK5 to provide the XCLK signal to the camera, and was written before
-// the Grand Central SAMD51 Arduino definition was fully formed. GCLK5
-// became vital for other purposes (looks like it feeds PLLs that time
-// nearly everything else). Fortunately there's a timer peripheral (TCC1)
-// also available on that same pin, so that's what's now used to provide
-// PCC_XCLK. The choice of pin/timer for that will likely be different
-// for other SAMD51 boards (e.g. Feather, ItsyBitsy), but as written here
-// must be a TC or TCC, not a GCLK source. Also: early code required that
-// the cache be disabled. That no longer seems to be necessary, PCC and
-// related code runs fine even with cache.
-

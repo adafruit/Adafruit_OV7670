@@ -54,7 +54,10 @@ static const OV7670_command
             {0xFF, 0xFF}},
     OV7670_init[] = {
         {OV7670_REG_TSLB, OV7670_TSLB_YLAST},    // No auto window
-        {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // -VSYNC (req by SAMD PCC)
+//        {OV7670_REG_COM10, OV7670_COM10_VS_NEG}, // -VSYNC (req by SAMD PCC)
+// TO DO: verify this works on both SAMD and RP2040.
+// If not, devise scheme for latter to change register after init.
+        {OV7670_REG_COM10, OV7670_COM10_VS_NEG | OV7670_COM10_PCLK_HB},
         {OV7670_REG_SLOP, 0x20},
         {OV7670_REG_GAM_BASE, 0x1C},
         {OV7670_REG_GAM_BASE + 1, 0x28},
