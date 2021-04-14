@@ -1,10 +1,4 @@
-// INITIALLY THIS IS COPIED FROM THE SAMD51 CODE AND WON'T ACTUALLY
-// COMPILE ON RP2040. A WORK IN PROGRESS.
-
 /*
-NOTE: RP2040 version will ALWAYS use DMA, it's not an Arduino-specific
-setup as initially described here (comments aren't updated yet as this
-code hasn't been written).
 This is the RP2040- and Arduino-specific parts of OV7670 camera interfacing.
 Unlike the RP2040-specific (but platform-agnostic) code in rp2040.c, this
 adds a DMA layer. Camera data is continually read and then paused when
@@ -25,11 +19,16 @@ passed around, and needed by the middle-layer C code anyway. Just provide
 arch_begin() and capture() in each .cpp and call it done.
 */
 
-
 #if defined(ARDUINO_ARCH_RP2040)
 #include "Adafruit_OV7670.h"
 #include "wiring_private.h" // pinPeripheral() function
 #include <Arduino.h>
+
+
+
+
+
+
 
 // Because interrupts exist outside the class context, but our interrupt
 // needs to access to an active ZeroDMA object, a separate ZeroDMA pointer
@@ -92,10 +91,7 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   host.arch = &arch; // Point to struct in Adafruit_OV7670 class
   host.pins = &pins; // Point to struct in Adafruit_OV7670 class
   if (arch_defaults) {
-#if 0
-    arch.timer = TCC1;      // Use default timer
-    arch.xclk_pdec = false; // and default pin MUX
-#endif
+    // See SAMD code for what could go here
   }
   host.platform = this; // Pointer back to Arduino_OV7670 object
 
@@ -106,7 +102,7 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   }
 
   // ARDUINO-SPECIFIC EXTRA INITIALIZATION ---------------------------------
-  // Sets up DMA for the parallel capture controller.
+  // Sets up DMA for the PIO RX
 
 #if 0
   ZeroDMAstatus dma_status = dma.allocate();
@@ -154,4 +150,4 @@ void Adafruit_OV7670::capture(void) {
 #endif
 }
 
-#endif // PICO_SDK_VERSION_MAJOR && ARDUINO
+#endif // ARDUINO_ARCH_RP2040
