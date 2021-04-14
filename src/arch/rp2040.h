@@ -1,5 +1,5 @@
 #pragma once
-#if defined(PICO_SDK_VERSION_MAJOR)
+#if defined(ARDUINO_ARCH_RP2040)
 #if defined(ARDUINO)
 #include <Arduino.h>
 #else
@@ -7,6 +7,8 @@
 #include <stdint.h>
 #endif // end platforms
 
+#include "hardware/gpio.h"
+#include "hardware/pwm.h"
 #include "hardware/pio.h"
 #include "../../hardware_dma/include/hardware/dma.h"
 
@@ -42,4 +44,4 @@ extern void OV7670_capture(uint16_t *dest, uint16_t width, uint16_t height,
 };
 #endif
 
-#endif // PICO_SDK_VERSION_MAJOR
+#endif // ARDUINO_ARCH_RP2040

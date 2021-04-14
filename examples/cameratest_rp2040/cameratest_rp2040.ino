@@ -52,17 +52,36 @@ Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
 
 void setup(void) {
   Serial.begin(9600);
+  while(!Serial);
   delay(1000);
-  Serial.print(F("Hello! ST77xx TFT Test"));
+  Serial.print(F("Hello! Camera Test"));
+
+  pinMode(25, OUTPUT);
+  digitalWrite(25, LOW);
 
   // These are currently RP2040 Philhower-specific
   SPI.setSCK(18); // SPI0
   SPI.setTX(19);
+  Wire.setSDA(pins.sda);
+  Wire.setSCL(pins.scl);
 
   tft.init(240, 240);
   tft.setSPISpeed(48000000);
   tft.fillScreen(ST77XX_BLACK);
   tft.println("Howdy");
+
+  // Once started, the camera continually fills a frame buffer
+  // automagically; no need to request a frame.
+  OV7670_status status = cam.begin(CAM_MODE, CAM_SIZE, 30.0);
+  if (status != OV7670_STATUS_OK) {
+    Serial.println("Camera begin() fail");
+    for(;;);
+  }
+
+  uint8_t pid = cam.readRegister(OV7670_REG_PID); // Should be 0x76
+  uint8_t ver = cam.readRegister(OV7670_REG_VER); // Should be 0x73
+  Serial.println(pid, HEX);
+  Serial.println(ver, HEX);
 }
 
 // MAIN LOOP - RUNS REPEATEDLY UNTIL RESET OR POWER OFF --------------------
@@ -77,6 +96,9 @@ void setup(void) {
 uint16_t frame = KEYFRAME; // Force 1st frame as keyframe
 
 void loop() {
+
+  gpio_xor_mask(1 << 25); // Toggle LED each frame
+
   // This was for empirically testing window settings in src/arch/ov7670.c.
   // Your code doesn't need this. Just keeping around for future reference.
   if(Serial.available()) {

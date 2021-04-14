@@ -4,7 +4,7 @@
 // because it needs platform-specific information (i.e. the camera buffer
 // and image dimensions that are part of the Arduino lib class).
 
-#if defined(PICO_SDK_VERSION_MAJOR)
+#if defined(ARDUINO_ARCH_RP2040)
 #include "ov7670.h"
 
 // PIO code in this table is modified at runtime so that PCLK and VSYNC
@@ -54,7 +54,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   gpio_init(host->pins->vsync); gpio_set_dir(host->pins->vsync, GPIO_IN);
   gpio_init(host->pins->hsync); gpio_set_dir(host->pins->hsync, GPIO_IN);
   for(uint8_t i=0; i<8; i++) {
-    gpio_init(host>pins->data[i]);
+    gpio_init(host->pins->data[i]);
     gpio_set_dir(host->pins->data[i], GPIO_IN);
   }
 
@@ -62,10 +62,10 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   // written to use whatever pio has resources.
   host->arch->pio = pio0;
 
-  ov_7670_pio_opcodes[0] |= host->pins->vsync; // Modify GPIO # for VSYNC
-  ov_7670_pio_opcodes[1] |= host->pins->pclk;  // Modify GPIO # for PCLK
+  ov7670_pio_opcodes[0] |= (host->pins->vsync & 31);
+  ov7670_pio_opcodes[1] |= (host->pins->pclk & 31);
   // Opcode 2 is unmodified
-  ov_7670_pio_opcodes[3] |= host->pins->pclk;  // Modify GPIO # for PCLK
+  ov7670_pio_opcodes[3] |= (host->pins->pclk & 31);
 
   // Here's where resource check & switch to pio1 might go
   uint offset = pio_add_program(host->arch->pio, &ov7670_pio_program);
@@ -76,19 +76,19 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   pio_sm_set_consecutive_pindirs(host->arch->pio, host->arch->sm,
                                  host->pins->data[0], 8, false);
 
-  pio_sm_config c = pio_get_default_sm_config(offset);
+  pio_sm_config c = pio_get_default_sm_config();
   sm_config_set_wrap(&c, offset, offset + ov7670_pio_program.length - 1);
 
   sm_config_set_in_pins(&c, host->pins->data[0]);
   sm_config_set_in_shift(&c, false, true, 8); // 8 data bits
   sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
 
-  pio_sm_init(host->pio, host->sm, offset, &c);
-  pio_sm_set_enabled(host->pio, host->sm, true);
+  pio_sm_init(host->arch->pio, host->arch->sm, offset, &c);
+  pio_sm_set_enabled(host->arch->pio, host->arch->sm, true);
 
   // This can improve GPIO responsiveness but is less noise-immune.
   uint32_t mask = (0xFF << host->pins->data[0]) | (1 << host->pins->pclk);
-  pio->input_sync_bypass = mask;
+  host->arch->pio->input_sync_bypass = mask;
 
   // PIO read from camera also requires DMA and interrupts, which are NOT
   // set up here! These are done in the platform arch_begin(), as they
@@ -104,11 +104,12 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   return OV7670_STATUS_OK;
 }
 
-// Non-DMA capture function using previously-initialized PCC peripheral.
+// Non-DMA capture function using previously-initialized peripherals.
 void OV7670_capture(uint16_t *dest, uint16_t width, uint16_t height,
                     volatile uint32_t *vsync_reg, uint32_t vsync_bit,
                     volatile uint32_t *hsync_reg, uint32_t hsync_bit) {
 
+#if 0
   while (*vsync_reg & vsync_bit)
     ; // Wait for VSYNC low (frame end)
   OV7670_disable_interrupts();
@@ -129,6 +130,7 @@ void OV7670_capture(uint16_t *dest, uint16_t width, uint16_t height,
   }
 
   OV7670_enable_interrupts();
+#endif
 }
 
 // DEVICE-SPECIFIC FUNCTIONS FOR NON-ARDUINO PLATFORMS ---------------------
@@ -144,4 +146,4 @@ void OV7670_capture(uint16_t *dest, uint16_t width, uint16_t height,
 // OV7670_enable_interrupts()
 // Also see notes at top regarding pin MUXing in this file.
 
-#endif // end PICO_SDK_VERSION_MAJOR
+#endif // end ARDUINO_ARCH_RP2040
