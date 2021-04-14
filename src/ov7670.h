@@ -1,10 +1,5 @@
 #pragma once
 
-// IMPORTANT: #include ALL of the arch-specific .h files here.
-// They have #ifdef checks to only take effect on the active architecture.
-#include "arch/samd51.h"
-#include "arch/rp2040.h"
-
 #if defined(ARDUINO)
 #include <Arduino.h>
 #define OV7670_delay_ms(x) delay(x)
@@ -20,6 +15,11 @@
 // or all of these, they should go in the device-specific .c file with a
 // !defined(ARDUINO) around them.
 #endif // end platforms
+
+// IMPORTANT: #include ALL of the arch-specific .h files here.
+// They have #ifdef checks to only take effect on the active architecture.
+#include "arch/samd51.h"
+#include "arch/rp2040.h"
 
 /** Status codes returned by some functions */
 typedef enum {
@@ -280,6 +280,8 @@ typedef struct {
 #define OV7670_REG_SATCTR 0xC9             //< Saturation control
 
 #define OV7670_REG_LAST OV7670_REG_SATCTR //< Maximum register address
+
+extern OV7670_status OV7670_arch_begin(OV7670_host *host);
 
 // C++ ACCESSIBLE FUNCTIONS ------------------------------------------------
 

@@ -17,7 +17,6 @@
 
 #include "image_ops.h"
 #include "ov7670.h"
-#include <Adafruit_ZeroDMA.h>
 #include <Wire.h>
 
 /** Buffer reallocation behaviors requested of setSize() */

@@ -8,192 +8,89 @@
 #if defined(PICO_SDK_VERSION_MAJOR)
 #include "ov7670.h"
 
+// PIO code in this table is modified at runtime so that PCLK and VSYNC
+// pins are configurable (rather than fixed GP##s). Data pins must be
+// contiguous.
+static uint16_t ov7670_pio_opcodes[] = {
+  0b0010000010000000, // WAIT 1 GPIO 0 (mask in VSYNC pin before use)
+  0b0010000010000000, // WAIT 1 GPIO 0 (mask in PCLK pin before use)
+  0b0100000000001000, // IN PINS 8
+  0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
+};
+
+struct pio_program ov7670_pio_program = {
+  .instructions = ov7670_pio_opcodes,
+  .length = sizeof ov7670_pio_opcodes / sizeof ov7670_pio_opcodes[0],
+  .origin = -1,
+};
+
 // Each supported architecture MUST provide this function with this name,
 // arguments and return type. It receives a pointer to a structure with
 // at least a list of pins, and usually additional device-specific data
 // attached to the 'arch' element.
-// SAMD51 host config sets up timer and parallel capture peripheral,
-// as these are mostly low-level register twiddles. It does NOT set up
-// DMA transfers, handled in higher-level calling code if needed.
 OV7670_status OV7670_arch_begin(OV7670_host *host) {
 
-  // LOOK UP TIMER OR TCC BASED ON ADDRESS IN HOST STRUCT ------------------
+  // LOOK UP PWM SLICE & CHANNEL BASED ON XCLK PIN -------------------------
 
-  static const struct {
-    void *base;       ///< TC or TCC peripheral base address
-    uint8_t GCLK_ID;  ///< Timer ID for GCLK->PCHCTRL
-    const char *name; ///< Printable timer ID for debug use
-  } timer[] = {
-#if defined(TC0)
-    {TC0, TC0_GCLK_ID, "TC0"},
-#endif
-#if defined(TC1)
-    {TC1, TC1_GCLK_ID, "TC1"},
-#endif
-#if defined(TC2)
-    {TC2, TC2_GCLK_ID, "TC2"},
-#endif
-#if defined(TC3)
-    {TC3, TC3_GCLK_ID, "TC3"},
-#endif
-#if defined(TC4)
-    {TC4, TC4_GCLK_ID, "TC4"},
-#endif
-#if defined(TC5)
-    {TC5, TC5_GCLK_ID, "TC5"},
-#endif
-#if defined(TC6)
-    {TC6, TC6_GCLK_ID, "TC6"},
-#endif
-#if defined(TC7)
-    {TC7, TC7_GCLK_ID, "TC7"},
-#endif
-#if defined(TC8)
-    {TC8, TC8_GCLK_ID, "TC8"},
-#endif
-#if defined(TC9)
-    {TC9, TC9_GCLK_ID, "TC9"},
-#endif
-#if defined(TC10)
-    {TC10, TC10_GCLK_ID, "TC10"},
-#endif
-#if defined(TC11)
-    {TC11, TC11_GCLK_ID, "TC11"},
-#endif
-#if defined(TC12)
-    {TC12, TC12_GCLK_ID, "TC12"},
-#endif
-    {NULL, 0, NULL}, // NULL separator between TC and TCC lists
-#if defined(TCC0)
-    {TCC0, TCC0_GCLK_ID, "TCC0"},
-#endif
-#if defined(TCC1)
-    {TCC1, TCC1_GCLK_ID, "TCC1"},
-#endif
-#if defined(TCC2)
-    {TCC2, TCC2_GCLK_ID, "TCC2"},
-#endif
-#if defined(TCC3)
-    {TCC3, TCC3_GCLK_ID, "TCC3"},
-#endif
-#if defined(TCC4)
-    {TCC4, TCC4_GCLK_ID, "TCC4"},
-#endif
-  };
+  uint8_t slice = pwm_gpio_to_slice_num(host->pins->xclk);
+  uint8_t channel = pwm_gpio_to_channel(host->pins->xclk);
 
-  uint8_t timer_list_index;
-  bool is_tcc = false; // Initial part of list is timer/counters, not TCCs
-  // Scan timer[] list until a matching timer/TCC is found...
-  for (timer_list_index = 0;
-       (timer_list_index < sizeof timer / sizeof timer[0]) &&
-       (timer[timer_list_index].base != host->arch->timer);
-       timer_list_index++) {
-    if (!timer[timer_list_index].base) { // NULL separator?
-      is_tcc = true; // In the TCC (not TC) part of the list now
-    }
-  }
-  if (timer_list_index >= sizeof timer / sizeof timer[0]) {
-    return OV7670_STATUS_ERR_PERIPHERAL; // No matching TC/TCC found
-  }
+  // CONFIGURE PWM FOR XCLK OUT --------------------------------------------
+  // XCLK to camera is required for it to communicate over I2C!
 
-  // CONFIGURE TIMER FOR XCLK OUT ------------------------------------------
+  // Currently assumes 125 MHz CPU clk, output is around 25 MHz
+  pwm_config config = pwm_get_default_config();
+  pwm_config_set_clkdiv(&config, 125000000.0 / (OV7670_XCLK_HZ * 2));
+  pwm_config_set_wrap(&config, 1); // 2 clocks/cycle
+  pwm_init(slice, &config, true);
+  pwm_set_chan_level(slice, channel, 1); // 50% duty cycle
+  gpio_set_function(host->pins->xclk, GPIO_FUNC_PWM);
 
-  uint8_t id = timer[timer_list_index].GCLK_ID;
+  // SET UP PIO ------------------------------------------------------------
 
-  // Route timer's peripheral channel control to GCLK1 (48 MHz)
+  // TO DO: verify the DATA pins are contiguous.
 
-  GCLK->PCHCTRL[id].bit.CHEN = 0;    // Peripheral channel disable
-  while (GCLK->PCHCTRL[id].bit.CHEN) // Wait for disable
-    ;
-  // Select generator 1, enable channel, use .reg so it's an atomic op
-  GCLK->PCHCTRL[id].reg = GCLK_PCHCTRL_GEN_GCLK1 | GCLK_PCHCTRL_CHEN;
-  while (!GCLK->PCHCTRL[id].bit.CHEN) // Wait for enable
-    ;
+  // Initially by default this always uses pio0, but I suppose this could be
+  // written to use whatever pio has resources.
+  host->arch->pio = pio0;
 
-  if (is_tcc) { // Is a TCC peripheral
+  ov_7670_pio_opcodes[0] |= host->pins->vsync; // Modify GPIO # for VSYNC
+  ov_7670_pio_opcodes[1] |= host->pins->pclk;  // Modify GPIO # for PCLK
+  // Opcode 2 is unmodified
+  ov_7670_pio_opcodes[3] |= host->pins->pclk;  // Modify GPIO # for PCLK
 
-    Tcc *tcc = (Tcc *)timer[timer_list_index].base;
+  // Here's where resource check & switch to pio1 might go
+  uint offset = pio_add_program(host->arch->pio, &ov7670_pio_program);
+  host->arch->sm = pio_claim_unused_sm(host->arch->pio, true); // 0-3
 
-    tcc->CTRLA.bit.ENABLE = 0; // Disable TCC before configuring
-    while (tcc->SYNCBUSY.bit.ENABLE)
-      ;
-    tcc->CTRLA.bit.PRESCALER = TCC_CTRLA_PRESCALER_DIV1_Val; // 1:1 Prescale
-    tcc->WAVE.bit.WAVEGEN = TCC_WAVE_WAVEGEN_NPWM_Val;       // Normal PWM
-    while (tcc->SYNCBUSY.bit.WAVE)
-      ;
+  // host->pins->data[0] is data bit 0. PIO code requires all 8 data be
+  // contiguous.
+  pio_sm_set_consecutive_pindirs(host->arch->pio, host->arch->sm,
+                                 host->pins->data[0], 8, false);
 
-    uint16_t period = 48000000 / OV7670_XCLK_HZ - 1;
-    tcc->PER.bit.PER = period;
-    while (tcc->SYNCBUSY.bit.PER)
-      ;
-    tcc->CC[1].bit.CC = (period + 1) / 2; // Aim for ~50% duty cycle
-    while (tcc->SYNCBUSY.bit.CC1)
-      ;
-    tcc->CTRLA.bit.ENABLE = 1;
-    while (tcc->SYNCBUSY.bit.ENABLE)
-      ;
+  pio_sm_config c = pio_get_default_sm_config(offset);
+  sm_config_set_wrap(&c, offset, offset + ov7670_pio_program.length - 1);
 
-#if defined(ARDUINO)
-    pinPeripheral(host->pins->xclk,
-                  host->arch->xclk_pdec ? PIO_TCC_PDEC : PIO_TIMER_ALT);
-#else
-      // CircuitPython, etc. pin mux here
-#endif
+  sm_config_set_in_pins(&c, host->pins->data[0]);
+  sm_config_set_in_shift(&c, false, true, 8); // 8 data bits
+  sm_config_set_fifo_join(&c, PIO_FIFO_JOIN_RX);
 
-  } else { // Is a TC peripheral
+  pio_sm_init(host->pio, host->sm, offset, &c);
+  pio_sm_set_enabled(host->pio, host->sm, true);
 
-    Tc *tc = (Tc *)timer[timer_list_index].base;
+  // This can improve GPIO responsiveness but is less noise-immune.
+  uint32_t mask = (0xFF << host->pins->data[0]) | (1 << host->pins->pclk);
+  pio->input_sync_bypass = mask;
 
-    // TO DO: ADD TC PERIPHERAL (NOT TCC) CODE HERE
-
-#if defined(ARDUINO)
-    pinPeripheral(host->pins->xclk, PIO_TIMER);
-#else
-    // CircuitPython, etc. pin mux here
-#endif
-
-  } // end TC/TCC
-
-  // SET UP PCC PERIPHERAL -------------------------------------------------
-
-  PCC->MR.bit.PCEN = 0; // Make sure PCC is disabled before setting MR reg
-
-  PCC->IDR.reg = 0b1111;       // Disable all PCC interrupts
-  MCLK->APBDMASK.bit.PCC_ = 1; // Enable PCC clock
-
-  // Set up pin MUXes for the camera clock, sync and data pins.
-  // I2C pins are already configured, XCLK was done above, and
-  // the reset and enable pins are handled in the calling code.
-  // Must do this before setting MR reg.
-#if defined(ARDUINO)
-  // PCC pins are set in stone on SAMD51
-  pinPeripheral(PIN_PCC_CLK, PIO_PCC);
-  pinPeripheral(PIN_PCC_DEN1, PIO_PCC); // VSYNC
-  pinPeripheral(PIN_PCC_DEN2, PIO_PCC); // HSYNC
-  pinPeripheral(PIN_PCC_D0, PIO_PCC);
-  pinPeripheral(PIN_PCC_D1, PIO_PCC);
-  pinPeripheral(PIN_PCC_D2, PIO_PCC);
-  pinPeripheral(PIN_PCC_D3, PIO_PCC);
-  pinPeripheral(PIN_PCC_D4, PIO_PCC);
-  pinPeripheral(PIN_PCC_D5, PIO_PCC);
-  pinPeripheral(PIN_PCC_D6, PIO_PCC);
-  pinPeripheral(PIN_PCC_D7, PIO_PCC);
-#else
-  // CircuitPython, etc. pin mux here
-#endif
-
-  // Accumulate 4 bytes into RHR register (two 16-bit pixels)
-  PCC->MR.reg = PCC_MR_CID(0x1) |   // Clear on falling DEN1 (VSYNC)
-                PCC_MR_ISIZE(0x0) | // Input data bus is 8 bits
-                PCC_MR_DSIZE(0x2);  // "4 data" at a time (accumulate in RHR)
-
-  PCC->MR.bit.PCEN = 1; // Enable PCC
+  host->arch->pclk_mask = 1UL << host->pins->pclk;
+  host->arch->vsync_mask = 1UL << host->pins->vsync;
+  host->arch->hsync_mask = 1UL << host->pins->hsync;
 
   return OV7670_STATUS_OK;
 }
 
 // Non-DMA capture function using previously-initialized PCC peripheral.
-void OV7670_capture(uint32_t *dest, uint16_t width, uint16_t height,
+void OV7670_capture(uint16_t *dest, uint16_t width, uint16_t height,
                     volatile uint32_t *vsync_reg, uint32_t vsync_bit,
                     volatile uint32_t *hsync_reg, uint32_t hsync_bit) {
 
