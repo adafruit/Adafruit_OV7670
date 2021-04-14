@@ -3,6 +3,7 @@
 // IMPORTANT: #include ALL of the arch-specific .h files here.
 // They have #ifdef checks to only take effect on the active architecture.
 #include "arch/samd51.h"
+#include "arch/rp2040.h"
 
 #if defined(ARDUINO)
 #include <Arduino.h>
