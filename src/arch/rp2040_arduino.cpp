@@ -25,10 +25,10 @@ passed around, and needed by the middle-layer C code anyway. Just provide
 arch_begin() and capture() in each .cpp and call it done.
 */
 
-#if defined(PICO_SDK_VERSION_MAJOR) && defined(ARDUINO)
+
+#if defined(ARDUINO_ARCH_RP2040)
 #include "Adafruit_OV7670.h"
 #include "wiring_private.h" // pinPeripheral() function
-#include <Adafruit_ZeroDMA.h>
 #include <Arduino.h>
 
 // Because interrupts exist outside the class context, but our interrupt
@@ -37,8 +37,10 @@ arch_begin() and capture() in each .cpp and call it done.
 // a single OV7670 can be active (probably no big deal, as there's only a
 // single parallel capture peripheral).
 
+#if 0
 static Adafruit_ZeroDMA dma;
 static DmacDescriptor *descriptor;       ///< DMA descriptor
+#endif
 static volatile bool frameReady = false; // true at end-of-frame
 static volatile bool suspended = false;
 
@@ -48,12 +50,16 @@ static volatile bool suspended = false;
 static void startFrame(void) {
   if (!suspended) {
     frameReady = false;
+#if 0
     (void)dma.startJob();
+#endif
   }
 }
 
 // End-of-DMA-transfer callback
+#if 0
 static void dmaCallback(Adafruit_ZeroDMA *dma) { frameReady = true; }
+#endif
 
 // Since ZeroDMA suspend/resume functions don't yet work, these functions
 // use static vars to indicate whether to trigger DMA transfers or hold off
@@ -86,8 +92,10 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   host.arch = &arch; // Point to struct in Adafruit_OV7670 class
   host.pins = &pins; // Point to struct in Adafruit_OV7670 class
   if (arch_defaults) {
+#if 0
     arch.timer = TCC1;      // Use default timer
     arch.xclk_pdec = false; // and default pin MUX
+#endif
   }
   host.platform = this; // Pointer back to Arduino_OV7670 object
 
@@ -100,6 +108,7 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   // ARDUINO-SPECIFIC EXTRA INITIALIZATION ---------------------------------
   // Sets up DMA for the parallel capture controller.
 
+#if 0
   ZeroDMAstatus dma_status = dma.allocate();
   // To do: handle dma_status here, map to OV7670_status on error
   dma.setAction(DMA_TRIGGER_ACTON_BEAT);
@@ -120,6 +129,7 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   // of this, but in practice that didn't seem to work.
   // DEN1 is the PCC VSYNC pin.
   attachInterrupt(PIN_PCC_DEN1, startFrame, FALLING);
+#endif
 
   return status;
 }
@@ -133,6 +143,7 @@ void Adafruit_OV7670::capture(void) {
   // non-DMA situations. Calling code would still need to resume DMA
   // when it's done with the data, wouldn't be completely transparent.
 
+#if 0
   vsync_reg = &PORT->Group[g_APinDescription[PIN_PCC_DEN1].ulPort].IN.reg;
   vsync_bit = 1ul << g_APinDescription[PIN_PCC_DEN1].ulPin;
   hsync_reg = &PORT->Group[g_APinDescription[PIN_PCC_DEN2].ulPort].IN.reg;
@@ -140,6 +151,7 @@ void Adafruit_OV7670::capture(void) {
 
   OV7670_capture((uint32_t *)buffer, _width, _height, vsync_reg, vsync_bit,
                  hsync_reg, hsync_bit);
+#endif
 }
 
 #endif // PICO_SDK_VERSION_MAJOR && ARDUINO

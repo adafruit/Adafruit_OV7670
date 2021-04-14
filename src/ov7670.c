@@ -24,7 +24,7 @@ extern void OV7670_write_register(void *platform, uint8_t reg, uint8_t value);
 // this points to a C++ object so we can find our way back to the correct
 // I2C peripheral (so this code doesn't have to deal with platform-specific
 // I2C calls).
-void OV7670_write_list(void *platform, OV7670_command *cmd) {
+void OV7670_write_list(void *platform, const OV7670_command *cmd) {
   for (int i = 0; cmd[i].reg <= OV7670_REG_LAST; i++) {
 #if 0 // DEBUG
     char buf[50];
