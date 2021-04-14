@@ -23,32 +23,11 @@ struct pio_program ov7670_pio_program = {
   .origin = -1,
 };
 
-// Need to save a pointer to the host struct so the
-// interrupts have access to it.
-// I guess this'll move over to the rp2040_arduino.c file since
-// that's where the interrupts are going.
-static OV7670_host *hostptr = NULL;
-
-static void ov7670_vsync_irq(uint gpio, uint32_t events) {
-  pio_sm_clear_fifos(hostptr->pio, hostptr->sm); // Clear PIO FIFOs
-  dma_channel_start(hostptr->dma_channel);       // Start DMA from PIO FIFO
-}
-
-static void ov7670_dma_finish_irq() {
-  // DMA transfer completed. Set up (but do not trigger) next one.
-  dma_hw->ints0 = 1u << hostptr->dma_channel; // Clear IRQ
-  // Channel MUST be reconfigured each time (to reset the dest address).
-//  dma_channel_set_write_addr(hostptr->dma_channel, cambuf, false);
-// shit. cambuf?
-}
-
 // Each supported architecture MUST provide this function with this name,
 // arguments and return type. It receives a pointer to a structure with
 // at least a list of pins, and usually additional device-specific data
 // attached to the 'arch' element.
 OV7670_status OV7670_arch_begin(OV7670_host *host) {
-
-  hostptr = host; // For interrupts
 
   // LOOK UP PWM SLICE & CHANNEL BASED ON XCLK PIN -------------------------
 
@@ -111,32 +90,10 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   uint32_t mask = (0xFF << host->pins->data[0]) | (1 << host->pins->pclk);
   pio->input_sync_bypass = mask;
 
-  // SET UP DMA ------------------------------------------------------------
-
-  host->dma_channel = dma_claim_unused_channel(false); // don't panic
-
-  c = dma_channel_get_default_config(host->dma_channel);
-  channel_config_set_transfer_data_size(&c, DMA_SIZE_8);
-  channel_config_set_read_increment(&c, false);
-  channel_config_set_write_increment(&c, true);
-  // Set PIO RX as DMA trigger
-  channel_config_set_dreq(&c, pio_get_dreq(host->pio, host->sm, false));
-  // Set up initial DMA xfer, but don't trigger (that's done in interrupt)
-// Here's cambuf again, also image size.
-// These are in the platform struct I guess?
-// Maybe this does need to go in Arduino, I dunno.
-//  dma_channel_configure(host->dma_channel, &c, cambuf, &host->pio->rxf[sm],
-//    160 * 120 * 2, false);
-
-  // Set up end-of-DMA interrupt
-  dma_channel_set_irq0_enabled(host->dma_channel, true);
-  irq_set_exclusive_handler(DMA_IRQ_0, ov7670_dma_finish_irq);
-  irq_set_enabled(DMA_IRQ_0, true);
-
-  // SET UP VSYNC INTERRUPT ------------------------------------------------
-
-  gpio_set_irq_enabled_with_callback(host->pins->vsync, GPIO_IRQ_EDGE_RISE,
-                                     true, &vsync_irq);
+  // PIO read from camera also requires DMA and interrupts, which are NOT
+  // set up here! These are done in the platform arch_begin(), as they
+  // require platform-specific information such as the camera buffer
+  // address and dimensions).
 
   // OTHER -----------------------------------------------------------------
 

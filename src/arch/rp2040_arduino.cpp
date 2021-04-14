@@ -23,46 +23,38 @@ arch_begin() and capture() in each .cpp and call it done.
 #include "Adafruit_OV7670.h"
 #include "wiring_private.h" // pinPeripheral() function
 #include <Arduino.h>
-
-
-
-
-
-
+#include "hardware/irq.h"
 
 // Because interrupts exist outside the class context, but our interrupt
-// needs to access to an active ZeroDMA object, a separate ZeroDMA pointer
-// is kept (initialized in the begin() function). This does mean that only
-// a single OV7670 can be active (probably no big deal, as there's only a
-// single parallel capture peripheral).
-
-#if 0
-static Adafruit_ZeroDMA dma;
-static DmacDescriptor *descriptor;       ///< DMA descriptor
-#endif
-static volatile bool frameReady = false; // true at end-of-frame
-static volatile bool suspended = false;
+// needs to access to object- and arch-specific data like the camera buffer
+// and DMA settings, pointers are kept (initialized in the begin() function).
+// This does mean that only a single OV7670 can be active.
+Adafruit_OV7670 *platformptr = NULL; // Camera buffer, size, etc.
+OV7670_arch *archptr = NULL;         // DMA settings
 
 // INTERRUPT HANDLING AND RELATED CODE -------------------------------------
 
+static volatile bool frameReady = false; // true at end-of-frame
+static volatile bool suspended = false;
+
 // Pin interrupt on VSYNC calls this to start DMA transfer (unless suspended).
-static void startFrame(void) {
+static void ov7670_vsync_irq(uint gpio, uint32_t events) {
   if (!suspended) {
     frameReady = false;
-#if 0
-    (void)dma.startJob();
-#endif
+    // Clear PIO FIFOs and start DMA transfer
+    pio_sm_clear_fifos(archptr->pio, archptr->sm);
+    dma_channel_start(archptr->dma_channel);
   }
 }
 
-// End-of-DMA-transfer callback
-#if 0
-static void dmaCallback(Adafruit_ZeroDMA *dma) { frameReady = true; }
-#endif
-
-// Since ZeroDMA suspend/resume functions don't yet work, these functions
-// use static vars to indicate whether to trigger DMA transfers or hold off
-// (camera keeps running, data is simply ignored without a DMA transfer).
+static void ov7670_dma_finish_irq() {
+  // DMA transfer completed. Set up (but do not trigger) next one.
+  dma_hw->ints0 = 1u << archptr->dma_channel; // Clear IRQ
+  // Channel MUST be reconfigured each time (to reset the dest address).
+  dma_channel_set_write_addr(archptr->dma_channel,
+                             (uint8_t *)(platformptr->getBuffer()), false);
+  frameReady = true;
+}
 
 // This is NOT a sleep function, it just pauses background DMA.
 
@@ -87,6 +79,10 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   // turn calls the device-specific C init OV7670_arch_begin() in samd51.c.
   // So many layers. It's like an ogre.
 
+  // I'm not sure what Past Me was thinking with the host struct here as
+  // a local variable passed to OV7670_begin() and then just goes away.
+  // Maybe it was supposed to be a static global in this file (replacing
+  // the separate archptr and platformptr pointers)?
   OV7670_host host;
   host.arch = &arch; // Point to struct in Adafruit_OV7670 class
   host.pins = &pins; // Point to struct in Adafruit_OV7670 class
@@ -102,30 +98,35 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   }
 
   // ARDUINO-SPECIFIC EXTRA INITIALIZATION ---------------------------------
-  // Sets up DMA for the PIO RX
 
-#if 0
-  ZeroDMAstatus dma_status = dma.allocate();
-  // To do: handle dma_status here, map to OV7670_status on error
-  dma.setAction(DMA_TRIGGER_ACTON_BEAT);
-  dma.setTrigger(PCC_DMAC_ID_RX);
-  dma.setCallback(dmaCallback);
-  dma.setPriority(DMA_PRIORITY_3);
+  // See notes at top re: pointers
+  archptr = &arch;    // For access to DMA settings
+  platformptr = this; // For access to buffer & dimensions
 
-  // Use 32-bit PCC transfers (4 bytes accumulate in RHR.reg)
-  descriptor = dma.addDescriptor((void *)(&PCC->RHR.reg), // Move from here
-                                 (void *)buffer,          // to here
-                                 _width * _height / 2,    // this many
-                                 DMA_BEAT_SIZE_WORD,      // 32-bit words
-                                 false,                   // Don't src++
-                                 true);                   // Do dest++
+  // SET UP DMA ------------------------------------------------------------
 
-  // A pin FALLING interrupt is used to detect the start of a new frame.
-  // Seems like the PCC RXBUFF and/or ENDRX interrupts could take care
-  // of this, but in practice that didn't seem to work.
-  // DEN1 is the PCC VSYNC pin.
-  attachInterrupt(PIN_PCC_DEN1, startFrame, FALLING);
-#endif
+  arch.dma_channel = dma_claim_unused_channel(false); // don't panic
+
+  arch.dma_config = dma_channel_get_default_config(arch.dma_channel);
+  channel_config_set_transfer_data_size(&arch.dma_config, DMA_SIZE_8);
+  channel_config_set_read_increment(&arch.dma_config, false);
+  channel_config_set_write_increment(&arch.dma_config, true);
+  // Set PIO RX as DMA trigger
+  channel_config_set_dreq(&arch.dma_config, pio_get_dreq(arch.pio, arch.sm,
+                          false));
+  // Set up initial DMA xfer, but don't trigger (that's done in interrupt)
+  dma_channel_configure(arch.dma_channel, &arch.dma_config, getBuffer(),
+    &arch.pio->rxf[arch.sm], width() * height() * 2, false);
+
+  // Set up end-of-DMA interrupt
+  dma_channel_set_irq0_enabled(arch.dma_channel, true);
+  irq_set_exclusive_handler(DMA_IRQ_0, ov7670_dma_finish_irq);
+  irq_set_enabled(DMA_IRQ_0, true);
+
+  // SET UP VSYNC INTERRUPT ------------------------------------------------
+
+  gpio_set_irq_enabled_with_callback(pins.vsync, GPIO_IRQ_EDGE_RISE,
+                                     true, &ov7670_vsync_irq);
 
   return status;
 }
