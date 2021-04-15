@@ -145,8 +145,7 @@ void loop() {
 
   // Camera data arrives in big-endian order...same as the TFT,
   // so data can just be issued directly, no byte-swap needed.
-//  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
-  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), true, true); // Blocking
+  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
 
   cam.resume(); // Resume DMA to camera buffer
 }

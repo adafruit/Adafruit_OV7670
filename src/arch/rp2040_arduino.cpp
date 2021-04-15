@@ -97,6 +97,10 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
     return status;
   }
 
+  // PIO code requires masking PCLK through the HSYNC signal
+  OV7670_write_register(this, OV7670_REG_COM10,
+                        OV7670_COM10_VS_NEG | OV7670_COM10_PCLK_HB);
+
   // ARDUINO-SPECIFIC EXTRA INITIALIZATION ---------------------------------
 
   // See notes at top re: pointers
