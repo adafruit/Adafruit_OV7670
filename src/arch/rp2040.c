@@ -65,6 +65,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   // written to use whatever pio has resources.
   host->arch->pio = pio0;
 
+  // Mask the GPIO pins used for VSYNC and PCLK into the PIO opcodes
   ov7670_pio_opcodes[0] |= (host->pins->vsync & 31);
   ov7670_pio_opcodes[1] |= (host->pins->pclk & 31);
   // Opcode 2 is unmodified
@@ -92,7 +93,8 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   // This can improve GPIO responsiveness but is less noise-immune.
   uint32_t mask = (0xFF << host->pins->data[0]) | (1 << host->pins->pclk) |
                   (1 << host->pins->vsync);
-//  host->arch->pio->input_sync_bypass = mask;
+  // Maybe not. Disabled for now.
+  //host->arch->pio->input_sync_bypass = mask;
 
   // PIO read from camera also requires DMA and interrupts, which are NOT
   // set up here! These are done in the platform arch_begin(), as they
