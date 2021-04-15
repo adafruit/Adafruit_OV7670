@@ -37,6 +37,12 @@ OV7670_arch *archptr = NULL;         // DMA settings
 static volatile bool frameReady = false; // true at end-of-frame
 static volatile bool suspended = false;
 
+// To do: use the arch state variable to detect when a VSYNC IRQ occurs
+// before the last DMA transfer is complete (suggesting one or more pixels
+// dropped, perhaps bad PCLK signal). If that happens, abort the DMA
+// transfer and return, don't begin next DMA until abort has completed
+// (this is what state var is for, to detect if in holding state).
+
 // Pin interrupt on VSYNC calls this to start DMA transfer (unless suspended).
 static void ov7670_vsync_irq(uint gpio, uint32_t events) {
   if (!suspended) {
@@ -49,11 +55,11 @@ static void ov7670_vsync_irq(uint gpio, uint32_t events) {
 
 static void ov7670_dma_finish_irq() {
   // DMA transfer completed. Set up (but do not trigger) next one.
-  dma_hw->ints0 = 1u << archptr->dma_channel; // Clear IRQ
+  frameReady = true;
   // Channel MUST be reconfigured each time (to reset the dest address).
   dma_channel_set_write_addr(archptr->dma_channel,
                              (uint8_t *)(platformptr->getBuffer()), false);
-  frameReady = true;
+  dma_hw->ints0 = 1u << archptr->dma_channel; // Clear IRQ
 }
 
 // This is NOT a sleep function, it just pauses background DMA.
@@ -99,7 +105,7 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
 
   // PIO code requires masking PCLK through the HSYNC signal
   OV7670_write_register(this, OV7670_REG_COM10,
-                        OV7670_COM10_VS_NEG | OV7670_COM10_PCLK_HB);
+    OV7670_COM10_VS_NEG | OV7670_COM10_PCLK_HB);
 
   // ARDUINO-SPECIFIC EXTRA INITIALIZATION ---------------------------------
 

@@ -21,7 +21,7 @@
 OV7670_arch arch;
 OV7670_pins pins = {
   .enable = -1, // Also called PWDN, or set to -1 and tie to GND
-  .reset  = -1, // Cam reset, or set to -1 and tie to 3.3V
+  .reset  = 14, // Cam reset, or set to -1 and tie to 3.3V
   .xclk   = 13, // MCU clock out / cam clock in
   .pclk   = 10, // Cam clock out / MCU clock in
   .vsync  = 11, // Also called DEN1

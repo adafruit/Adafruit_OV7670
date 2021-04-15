@@ -145,6 +145,7 @@ typedef struct {
 #define OV7670_REG_COM10 0x15              //< Common control 10
 #define OV7670_COM10_HSYNC 0x40            //< COM10 HREF changes to HSYNC
 #define OV7670_COM10_PCLK_HB 0x20          //< COM10 Suppress PCLK on hblank
+#define OV7670_COM10_PCLK_REV 0x10         //< COM10 PCLK reverse
 #define OV7670_COM10_HREF_REV 0x08         //< COM10 HREF reverse
 #define OV7670_COM10_VS_EDGE 0x04          //< COM10 VSYNC chg on PCLK rising
 #define OV7670_COM10_VS_NEG 0x02           //< COM10 VSYNC negative
