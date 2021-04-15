@@ -39,9 +39,10 @@ static volatile bool suspended = false;
 
 // To do: use the arch state variable to detect when a VSYNC IRQ occurs
 // before the last DMA transfer is complete (suggesting one or more pixels
-// dropped, perhaps bad PCLK signal). If that happens, abort the DMA
-// transfer and return, don't begin next DMA until abort has completed
-// (this is what state var is for, to detect if in holding state).
+// dropped, likely bad PCLK signal). If that happens, abort the DMA
+// transfer and return, skip frames and  don't begin next DMA until abort
+// has completed (this is what state var is for, to detect if in this
+// holding pattern).
 
 // Pin interrupt on VSYNC calls this to start DMA transfer (unless suspended).
 static void ov7670_vsync_irq(uint gpio, uint32_t events) {
