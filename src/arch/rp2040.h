@@ -1,5 +1,10 @@
 #pragma once
+
+// This will need to change since ARDUINO_ARCH_RP2040 is Arduino-platform-
+// specific (possibly Philhower specific), while this file is supposed to
+// be platform neutral and RP2040-specific.
 #if defined(ARDUINO_ARCH_RP2040)
+
 #if defined(ARDUINO)
 #include <Arduino.h>
 #else

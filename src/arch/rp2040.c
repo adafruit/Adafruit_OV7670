@@ -4,6 +4,9 @@
 // because it needs platform-specific information (i.e. the camera buffer
 // and image dimensions that are part of the Arduino lib class).
 
+// This will need to change since ARDUINO_ARCH_RP2040 is Arduino-platform-
+// specific (possibly Philhower specific), while this file is supposed to
+// be platform neutral and RP2040-specific.
 #if defined(ARDUINO_ARCH_RP2040)
 #include "ov7670.h"
 

@@ -42,8 +42,8 @@ Adafruit_OV7670 cam(OV7670_ADDR, &pins, &CAM_I2C, &arch);
 
 // DISPLAY CONFIG ----------------------------------------------------------
 
-#define TFT_CS  16 // SPI0 at south end of board
-#define TFT_DC  17
+#define TFT_CS  17 // Near SPI0 at south end of board
+#define TFT_DC  16
 #define TFT_RST -1 // Connect to MCU reset
 
 Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
@@ -52,9 +52,9 @@ Adafruit_ST7789 tft = Adafruit_ST7789(TFT_CS, TFT_DC, TFT_RST);
 
 void setup(void) {
   Serial.begin(9600);
-  while(!Serial);
+  //while(!Serial);
   delay(1000);
-  Serial.print(F("Hello! Camera Test"));
+  Serial.println(F("Hello! Camera Test"));
 
   pinMode(25, OUTPUT);
   digitalWrite(25, LOW);
@@ -62,7 +62,7 @@ void setup(void) {
   // These are currently RP2040 Philhower-specific
   SPI.setSCK(18); // SPI0
   SPI.setTX(19);
-  Wire.setSDA(pins.sda);
+  Wire.setSDA(pins.sda); // I2C0
   Wire.setSCL(pins.scl);
 
   tft.init(240, 240);
@@ -99,6 +99,7 @@ void loop() {
 
   gpio_xor_mask(1 << 25); // Toggle LED each frame
 
+#if 0
   // This was for empirically testing window settings in src/arch/ov7670.c.
   // Your code doesn't need this. Just keeping around for future reference.
   if(Serial.available()) {
@@ -109,7 +110,7 @@ void loop() {
     OV7670_frame_control((void *)&cam, CAM_SIZE, vstart, hstart,
                          edge_offset, pclk_delay);
   }
-
+#endif
   if (++frame >= KEYFRAME) { // Time to sync up a fresh address window?
     frame = 0;
 
@@ -144,7 +145,8 @@ void loop() {
 
   // Camera data arrives in big-endian order...same as the TFT,
   // so data can just be issued directly, no byte-swap needed.
-  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
+//  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
+  tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), true, true); // Blocking
 
   cam.resume(); // Resume DMA to camera buffer
 }
