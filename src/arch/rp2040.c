@@ -120,8 +120,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   pio_sm_set_enabled(host->arch->pio, host->arch->sm, true);
 
   // This can improve GPIO responsiveness but is less noise-immune.
-  uint32_t mask = (0xFF << host->pins->data[0]) | (1 << host->pins->pclk) |
-                  (1 << host->pins->vsync);
+  uint32_t mask = (0xFF << host->pins->data[0]) | (1 << host->pins->pclk);
   // Maybe not. Disabled for now.
   //host->arch->pio->input_sync_bypass = mask;
 
