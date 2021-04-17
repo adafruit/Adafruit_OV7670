@@ -148,6 +148,8 @@ void loop() {
   // Camera data arrives in big-endian order...same as the TFT,
   // so data can just be issued directly, no byte-swap needed.
   tft.writePixels(cam.getBuffer(), cam.width() * cam.height(), false, true);
+  // To do: add a DMA SPI transfer here -- even if it's blocking,
+  // should still go a ton faster due to endian match.
 
   cam.resume(); // Resume DMA to camera buffer
 }

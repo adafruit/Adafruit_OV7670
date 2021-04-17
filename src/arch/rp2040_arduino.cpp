@@ -119,15 +119,16 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   arch.dma_channel = dma_claim_unused_channel(false); // don't panic
 
   arch.dma_config = dma_channel_get_default_config(arch.dma_channel);
-  channel_config_set_transfer_data_size(&arch.dma_config, DMA_SIZE_8);
+  channel_config_set_transfer_data_size(&arch.dma_config, DMA_SIZE_16);
   channel_config_set_read_increment(&arch.dma_config, false);
   channel_config_set_write_increment(&arch.dma_config, true);
-  // Set PIO RX as DMA trigger
+  // Set PIO RX as DMA trigger. Input shift register saturates at 16 bits
+  // (1 pixel), configured in data size above and in PIO setup elsewhere.
   channel_config_set_dreq(&arch.dma_config, pio_get_dreq(arch.pio, arch.sm,
                           false));
   // Set up initial DMA xfer, but don't trigger (that's done in interrupt)
   dma_channel_configure(arch.dma_channel, &arch.dma_config, getBuffer(),
-    &arch.pio->rxf[arch.sm], width() * height() * 2, false);
+    &arch.pio->rxf[arch.sm], width() * height(), false);
 
   // Set up end-of-DMA interrupt
   dma_channel_set_irq0_enabled(arch.dma_channel, true);
