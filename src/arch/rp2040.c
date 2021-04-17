@@ -14,11 +14,25 @@
 // pins are configurable (rather than fixed GP##s). Data pins must be
 // contiguous.
 static uint16_t ov7670_pio_opcodes[] = {
+#if 0
   0b0010000010000000, // WAIT 1 GPIO 0 (mask in VSYNC pin before use)
   0b0010000010000000, // WAIT 1 GPIO 0 (mask in PCLK pin before use)
   0b0100000000001000, // IN PINS 8
   0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
+#else
+  // Since PCLK is masked through HSYNC, shouldn't need any checks,
+  // just process PCLK directly.
+  0b0010000010000000, // WAIT 1 GPIO 0 (mask in PCLK pin before use)
+  0b0100000000001000, // IN PINS 8
+  0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
+#endif
 };
+
+// On PCLK rising edge, delay before sampling IN pins.
+// Determined empirically; might need to be a func of CPU or XCLK.
+#define PIO_DELAY 16
+// This doesn't make sense to me to delay this many cycles,
+// but here we are.
 
 struct pio_program ov7670_pio_program = {
   .instructions = ov7670_pio_opcodes,
@@ -40,12 +54,18 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   // CONFIGURE PWM FOR XCLK OUT --------------------------------------------
   // XCLK to camera is required for it to communicate over I2C!
 
-  // Currently assumes 125 MHz CPU clk, output is around 25 MHz
   pwm_config config = pwm_get_default_config();
-  pwm_config_set_clkdiv(&config, 125000000.0 / (OV7670_XCLK_HZ * 2));
+#if 0
+  pwm_config_set_clkdiv(&config, (float)F_CPU / (float)(OV7670_XCLK_HZ * 2));
   pwm_config_set_wrap(&config, 1); // 2 clocks/cycle
   pwm_init(slice, &config, true);
   pwm_set_chan_level(slice, channel, 1); // 50% duty cycle
+#else
+  pwm_config_set_clkdiv(&config, 1); // PWM clock = F_CPU
+  pwm_config_set_wrap(&config, F_CPU / OV7670_XCLK_HZ);
+  pwm_init(slice, &config, true);
+  pwm_set_chan_level(slice, channel, F_CPU / OV7670_XCLK_HZ / 2); // 50% duty
+#endif
   gpio_set_function(host->pins->xclk, GPIO_FUNC_PWM);
 
   // SET UP PIO ------------------------------------------------------------
@@ -66,10 +86,18 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   host->arch->pio = pio0;
 
   // Mask the GPIO pins used for VSYNC and PCLK into the PIO opcodes
+#if 0
   ov7670_pio_opcodes[0] |= (host->pins->vsync & 31);
   ov7670_pio_opcodes[1] |= (host->pins->pclk & 31);
   // Opcode 2 is unmodified
   ov7670_pio_opcodes[3] |= (host->pins->pclk & 31);
+#else
+  // See notes at top with the PIO code
+  ov7670_pio_opcodes[0] |= (host->pins->pclk & 31);
+  ov7670_pio_opcodes[0] |= PIO_DELAY << 8;
+  // Opcode 1 is unmodified
+  ov7670_pio_opcodes[2] |= (host->pins->pclk & 31);
+#endif
 
   // Here's where resource check & switch to pio1 might go
   uint offset = pio_add_program(host->arch->pio, &ov7670_pio_program);
@@ -81,6 +109,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
                                  host->pins->data[0], 8, false);
 
   pio_sm_config c = pio_get_default_sm_config();
+  c.pinctrl = 0; // SDK fails to set this
   sm_config_set_wrap(&c, offset, offset + ov7670_pio_program.length - 1);
 
   sm_config_set_in_pins(&c, host->pins->data[0]);

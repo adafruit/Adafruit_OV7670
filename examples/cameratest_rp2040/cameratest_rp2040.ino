@@ -82,6 +82,8 @@ void setup(void) {
   uint8_t ver = cam.readRegister(OV7670_REG_VER); // Should be 0x73
   Serial.println(pid, HEX);
   Serial.println(ver, HEX);
+
+//  cam.test_pattern(OV7670_TEST_PATTERN_COLOR_BAR);
 }
 
 // MAIN LOOP - RUNS REPEATEDLY UNTIL RESET OR POWER OFF --------------------
@@ -99,7 +101,6 @@ void loop() {
 
   gpio_xor_mask(1 << 25); // Toggle LED each frame
 
-#if 0
   // This was for empirically testing window settings in src/arch/ov7670.c.
   // Your code doesn't need this. Just keeping around for future reference.
   if(Serial.available()) {
@@ -107,10 +108,11 @@ void loop() {
     uint32_t hstart = Serial.parseInt();
     uint32_t edge_offset = Serial.parseInt();
     uint32_t pclk_delay = Serial.parseInt();
+    while(Serial.read() >= 0); // Delete line ending or other cruft
     OV7670_frame_control((void *)&cam, CAM_SIZE, vstart, hstart,
                          edge_offset, pclk_delay);
   }
-#endif
+
   if (++frame >= KEYFRAME) { // Time to sync up a fresh address window?
     frame = 0;
 
