@@ -104,9 +104,13 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
     return status;
   }
 
+// See notes in rp2040.c -- a change to the PIO (waiting for HSYNC)
+// seems to fix this, can then keep same init sequence as SAMD.
+#if 0
   // PIO code requires masking PCLK through the HSYNC signal
   OV7670_write_register(this, OV7670_REG_COM10,
     OV7670_COM10_VS_NEG | OV7670_COM10_PCLK_HB);
+#endif
 
   // ARDUINO-SPECIFIC EXTRA INITIALIZATION ---------------------------------
 

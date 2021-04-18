@@ -14,11 +14,20 @@
 // configurable (rather than fixed GP## or PIN offset). Data pins
 // must be contiguous but are otherwise configurable.
 static uint16_t ov7670_pio_opcodes[] = {
+#if 0
   // Since PCLK is masked through HSYNC, and FIFO is cleared on VSYNC,
   // no pins other than PCLK need the wait checks.
   0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
   0b0010000010000000, // WAIT 1 GPIO 0 -- rising edge
   0b0100000000001000, // IN PINS 8 -- 8 bits into RX FIFO
+#else
+  // Only monitor PCLK when HSYNC is high. This is more noise-immune
+  // than the prior approach.
+  0b0010000010000000, // WAIT 1 GPIO 0 (mask in HSYNC pin before use)
+  0b0010000010000000, // WAIT 1 GPIO 0 (mask in PCLK pin before use)
+  0b0100000000001000, // IN PINS 8 -- 8 bits into RX FIFO
+  0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
+#endif
 };
 
 struct pio_program ov7670_pio_program = {
@@ -73,8 +82,14 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   host->arch->pio = pio0;
 
   // Mask the GPIO pin used PCLK into the PIO opcodes -- see notes at top
+#if 0
   ov7670_pio_opcodes[0] |= (host->pins->pclk & 31);
   ov7670_pio_opcodes[1] |= (host->pins->pclk & 31);
+#else
+  ov7670_pio_opcodes[0] |= (host->pins->hsync & 31);
+  ov7670_pio_opcodes[1] |= (host->pins->pclk & 31);
+  ov7670_pio_opcodes[3] |= (host->pins->pclk & 31);
+#endif
 
   // Here's where resource check & switch to pio1 might go
   uint offset = pio_add_program(host->arch->pio, &ov7670_pio_program);

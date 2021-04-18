@@ -69,7 +69,7 @@ void setup(void) {
   tft.setSPISpeed(48000000);
   tft.fillScreen(ST77XX_BLACK);
   tft.println("Howdy");
-
+tft.setRotation(3);
   // Once started, the camera continually fills a frame buffer
   // automagically; no need to request a frame.
   OV7670_status status = cam.begin(CAM_MODE, CAM_SIZE, 30.0);
@@ -127,7 +127,7 @@ void loop() {
   }
 
   // Pause the camera DMA - hold buffer steady to avoid tearing
-  cam.suspend();
+//  cam.suspend();
 
   //cam.capture(); // Manual capture instead of PIO DMA
 
@@ -151,5 +151,5 @@ void loop() {
   // To do: add a DMA SPI transfer here -- even if it's blocking,
   // should still go a ton faster due to endian match.
 
-  cam.resume(); // Resume DMA to camera buffer
+//  cam.resume(); // Resume DMA to camera buffer
 }
