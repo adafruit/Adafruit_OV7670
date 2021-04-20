@@ -39,6 +39,7 @@ OV7670_pins pins = {
 #define CAM_MODE OV7670_COLOR_RGB // RGB plz
 
 Adafruit_OV7670 cam(OV7670_ADDR, &pins, &CAM_I2C, &arch);
+// Adafruit_OV7670 cam(0x30, &pins, &CAM_I2C, &arch); // OIV2640 WIP
 
 // DISPLAY CONFIG ----------------------------------------------------------
 
@@ -78,11 +79,19 @@ tft.setRotation(3);
     for(;;);
   }
 
+#if 0
+// OV2640 WIP
+  cam.writeRegister(0xFF, 0x01);
+  uint8_t pid = cam.readRegister(0x0A); // Should be 0x26
+  uint8_t ver = cam.readRegister(0x0B); // Should be 0x41
+  Serial.println(pid, HEX);
+  Serial.println(ver, HEX);
+#else
   uint8_t pid = cam.readRegister(OV7670_REG_PID); // Should be 0x76
   uint8_t ver = cam.readRegister(OV7670_REG_VER); // Should be 0x73
   Serial.println(pid, HEX);
   Serial.println(ver, HEX);
-
+#endif
 //  cam.test_pattern(OV7670_TEST_PATTERN_COLOR_BAR);
 }
 
