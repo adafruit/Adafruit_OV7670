@@ -95,7 +95,189 @@ typedef struct {
 } OV7670_host;
 
 #define OV7670_ADDR 0x21 //< Default I2C address if unspecified
+#define OV2640_ADDR 0x30 //< Default I2C address if unspecified
 
+#define OV2640_REG_RA_DLMT 0xFF           //< Register bank select
+#define OV2640_RA_DLMT_DSP 0x00           //< Bank 0 - DSP address
+#define OV2640_RA_DLMT_SENSOR 0x01        //< Bank 1 - Sensor address
+
+// OV2640 register bank 0 -- DSP address
+#define OV2640_REG0_R_BYPASS 0x05         //< Bypass DSP
+#define OV2640_R_BYPASS_MASK 0x01         //< R_BYPASS bypass DSP mask
+#define OV2640_REG0_QS 0x44               //< Quantization scale factor
+#define OV2640_REG0_CTRLI 0x50            //< ?
+#define OV2640_CTRLI_LP_DP_MASK 0x80      //< LP_DP mask
+#define OV2640_CTRLI_V_DIV_MASK 0x38      //< V_DIVIDER mask
+#define OV2640_CTRLI_H_DIV_MASK 0x07      //< H_DIVIDER mask
+#define OV2640_REG0_HSIZE 0x51            //< H_SIZE[7:0] (real/4)
+#define OV2640_REG0_VSIZE 0x52            //< V_SIZE[7:0] (real/4)
+#define OV2640_REG0_XOFFL 0x53            //< OFFSET_X[7:0]
+#define OV2640_REG0_YOFFL 0x54            //< OFFSET_Y[7:0]
+#define OV2640_REG0_VHYX 0x55             //< V/H/X/Y size/offset high bits
+#define OV2640_VHYX_V_SIZE_MASK 0x80      //< V_SIZE[8] mask
+#define OV2640_VHYX_OFFSET_Y_MASK 0x70    //< OFFSET_Y[10:8] mask
+#define OV2640_VHYX_H_SIZE_MASK 0x08      //< H_SIZE[8] masl
+#define OV2640_VHYX_OFFSET_X_MASK 0x7     //< OFFSET_X[10:8] mask
+#define OV2640_REG0_DPRP 0x56             //< ?
+#define OV2640_DPRP_DP_SELY_MASK 0xF0     //< DP_SELY mask
+#define OV2640_DPRP_DP_SELX_MASK 0x0F     //< DP_SELX mask
+#define OV2640_REG0_TEST 0x57             //< ?
+#define OV2640_TEST_H_SIZE_MASK 0x80      //< H_SIZE[9] mask
+#define OV2640_REG0_ZMOW 0x5A             //< OUTW[7:0] (real/4)
+#define OV2640_REG0_ZMOH 0x5B             //< OUTH[7:0] (real/4)
+#define OV2640_REG0_ZMHH 0x5C             //< Zoom speed and more
+#define OV2640_ZMHH_ZMSPD_MASK 0xF0       //< ZMSPD (zoom speed)
+#define OV2640_ZMHH_OUTH_MASK 0x40        //< OUTH[8]
+#define OV2640_ZMHH_OUTW_MASK 0x03        //< OUTW[9:8]
+#define OV2640_REG0_BPADDR 0x7C           //< SDE indirect reg access: address
+#define OV2640_REG0_BPDATA 0x7D           //< SDE indirect reg access: data
+#define OV2640_REG0_CTRL2 0x86            //< Module enable
+#define OV2640_CTRL2_DCW_MASK 0x20        //< DCW mask
+#define OV2640_CTRL2_SDE_MASK 0x10        //< SDE mask
+#define OV2640_CTRL2_UV_ADJ_MASK 0x08     //< UV_ADJ mask
+#define OV2640_CTRL2_UV_AVG_MASK 0x04     //< UV_AVG mask
+#define OV2640_CTRL2_CMX_MASK 0x01        //< CMX mask
+#define OV2640_REG0_CTRL3 0x87            //< Module enable, continued
+#define OV2640_CTRL3_BPC_MASK 0x80        //< BPC mask
+#define OV2640_CTRL3_WPC_MASK 0x40        //< WPC mask
+#define OV2640_REG0_SIZEL 0x87            //< HSIZE, VSIZE bits
+#define OV2640_REG0_HSIZE8 0xC0           //< Image horizontal size HSIZE[10:3]
+#define OV2640_REG0_VSIZE8 0xC1           //< Image vertical size VSIZE[10:3]
+#define OV2640_REG0_CTRL0 0xC2            //< Module enable, continued
+#define OV2640_CTRL0_AEC_EN_MASK 0x80     //< AEC_EN mask
+#define OV2640_CTRL0_AEC_SEL_MASK 0x40    //< AEC_SEL mask
+#define OV2640_CTRL0_STAT_SEL_MASK 0x20   //< STAT_SEL mask
+#define OV2640_CTRL0_VFIRST_MASK 0x10     //< VFIRST mask
+#define OV2640_CTRL0_YUV422_MASK 0x08     //< YUV922 mask
+#define OV2640_CTRL0_YUV_EN_MASK 0x04     //< YUV_EN mask
+#define OV2640_CTRL0_RGB_EN_MASK 0x02     //< RGB_EN mask
+#define OV2640_CTRL0_RAW_EN_MASK 0x01     //< RAW_EN mask
+#define OV2640_REG0_CTRL1 0xC3            //< Module enable, continued
+#define OV2640_CTRL1_CIP_MASK 0x80        //< CIP mask
+#define OV2640_CTRL1_DMY_MASK 0x40        //< DMY mask
+#define OV2640_CTRL1_RAW_GMA_MASK 0x20    //< RAW_GMA mask
+#define OV2640_CTRL1_DG_MASK 0x10         //< DG mask
+#define OV2640_CTRL1_AWB_MASK 0x08        //< AWB mask
+#define OV2640_CTRL1_AWB_GAIN_MASK 0x04   //< AWB_GAIN mask
+#define OV2640_CTRL1_LENC_MASK 0x02       //< LENC mask
+#define OV2640_CTRL1_PRE_MASK 0x01        //< PRE mask
+#define OV2640_REG0_R_DVP_SP 0xD3         //< DVP selections
+#define OV2640_R_DVP_SP_AUTO_MASK 0x80    //< Auto mode mask
+#define OV2640_R_DVP_SP_PCLK_MASK 0x7F    //< DVP PCLK mask
+#define OV2640_REG0_IMAGE_MODE 0xDA       //< Image output format select
+#define OV2640_IMAGE_MODE_Y8_MASK 0x40    //< Y8 enable for DVP
+#define OV2640_IMAGE_MODE_JPEG_MASK 0x10  //< JPEG output enable mask
+#define OV2640_IMAGE_MODE_DVP_MASK 0x0C   //< DVP output format mask
+#define OV2640_IMAGE_MODE_DVP_YUV 0x00    //< YUV422
+#define OV2640_IMAGE_MODE_DVP_RAW10 0x04  //< RAW10 (DVP)
+#define OV2640_IMAGE_MODE_DVP_RGB565 0x08 //< RGB565
+#define OV2640_IMAGE_MODE_HREF_MASK 0x02  //< HREF timing select in JPEG mode
+#define OV2640_IMAGE_MODE_SWAP_MASK 0x01  //< Byte swap enable for DVP
+#define OV2640_REG0_RESET 0xE0            //< Reset
+#define OV2640_RESET_MCU_MASK 0x40        //< Microcontroller reset mask
+#define OV2640_RESET_SCCB_MASK 0x20       //< SCCB reset mask
+#define OV2640_RESET_JPEG_MASK 0x10       //< JPEG reset mask
+#define OV2640_RESET_DVP_MASK 0x04        //< DVP reset mask
+#define OV2640_RESET_IPU_MASK 0x02        //< IPU reset mask
+#define OV2640_RESET_CIF_MASK 0x01        //< CIF reset mask
+#define OV2640_REG0_MS_SP 0xF0            //< SCCB host speed
+#define OV2640_REG0_SS_ID 0xF7            //< SCCB periph ID
+#define OV2640_REG0_SS_CTRL 0xF8          //< SCCB periph control 1
+#define OV2640_SS_CTRL_ADDR_MASK 0x20     //< Address auto-increment mask
+#define OV2640_SS_CTRL_SCCB_MASK 0x08     //< SCCB enable mask
+#define OV2640_SS_CTRL_DELAY_MASK 0x04    //< Delay SCCB main clock mask
+#define OV2640_SS_CTRL_ACCESS_MASK 0x02   //< Enable SCCB host access mask
+#define OV2640_SS_CTRL_SENSOR_MASK 0x01   //< Enable sensor pass-through mask
+#define OV2640_REG0_MC_BIST 0xF9          //< ?
+#define OV2640_MC_BIST_RESET_MASK 0x80    //< MCU reset mask
+#define OV2640_MC_BIST_BOOTROM_MASK 0x80  //< Boot ROM select mask
+#define OV2640_MC_BIST_12K_1_MASK 0x80    //< R/W 1 error for 12KB mem mask
+#define OV2640_MC_BIST_12K_0_MASK 0x80    //< R/W 0 error for 12KB mem mask
+#define OV2640_MC_BIST_512_1_MASK 0x80    //< R/W 1 error for 512B mem mask
+#define OV2640_MC_BIST_512_0_MASK 0x80    //< R/W 0 error for 512B mem mask
+#define OV2640_MC_BIST_BUSY_MASK 0x80     //< R=BISY busy, W=MCU reset mask
+#define OV2640_MC_BIST_LAUNCH_MASK 0x80   //< Launch BIST mask
+#define OV2640_REG0_MC_AL 0xFA            //< Program mem ptr addr low byte
+#define OV2640_REG0_MC_AH 0xFB            //< Program mem ptr addr high byte
+#define OV2640_REG0_MC_D 0xFC             //< Program mem ptr access address
+#define OV2640_REG0_P_CMD 0xFD            //< SCCB protocol command register
+#define OV2640_REG0_P_STATUS 0xFE         //< SCCB protocol status register
+
+// OV2640 register bank 1 -- Sensor address
+#define OV2640_REG1_GAIN 0x00             //< AGC gain control LSBs
+#define OV2640_REG1_COM1 0x03             //< Common control 1
+#define OV2640_COM1_DFRAME_MASK 0xC0      //< Dummy frame control mask
+#define OV2640_COM1_DFRAME_1 0x40         //< Allow 1 dummy frame
+#define OV2640_COM1_DFRAME_4 0x80         //< Allow 4 dummy frames
+#define OV2640_COM1_DFRAME_7 0xC0         //< Allow 7 dummy frames
+#define OV2640_COM1_VEND_MASK 0x0C        //< Vert window end line LSBs
+#define OV2640_COM1_VSTRT_MASK 0x03       //< Vert window start line LSBs
+#define OV2640_REG1_REG04 0x04            //< Register 04
+#define OV2640_REG04_HFLIP_MASK 0x80      //< Horizontal mirror
+#define OV2640_REG04_VFLIP_MASK 0x40      //< Vertical mirror
+#define OV2640_REG04_VREF_MASK 0x10       //< VREF[0]
+#define OV2640_REG04_HREF_MASK 0x08       //< HREF[0]
+#define OV2640_REG04_AEC_MASK 0x03        //< AEC[1:0]
+#define OV2640_REG1_REG08 0x08            //< Register 08 (frame exposure)
+#define OV2640_REG1_COM2 0x09             //< Common control 2
+#define OV2640_COM2_STANDBY_MASK 0x10     //< Standby mode mask
+#define OV2640_COM2_PINUSE_MASK 0x04      //< PWDN/RESETB as SLVS/SLHS mask
+#define OV2640_COM2_DRIVE_MASK 0x03       //< Output drive select mask
+#define OV2640_COM2_DRIVE_1 0x00          //< 1x
+#define OV2640_COM2_DRIVE_3 0x01          //< 3x (sic)
+#define OV2640_COM2_DRIVE_2 0x02          //< 2x (sic)
+#define OV2640_COM2_DRIVE_4 0x03          //< 4x
+#define OV2640_REG1_PIDH 0x0A             //< Product ID MSB (read only)
+#define OV2640_REG1_PIDL 0x0B             //< Product ID LSB (read only)
+#define OV2640_REG1_COM3 0x0C             //< Common control 3
+#define OV2640_COM3_BANDING_MASK 0x04     //< Set banding manually mask
+#define OV2640_COM3_BANDING_60HZ 0x00     //< 60 Hz
+#define OV2640_COM3_BANDING_50HZ 0x04     //< 50 Hz
+#define OV2640_COM3_AUTO_BAND_MASK 0x02   //< Auto-set banding mask
+#define OV2640_COM3_SNAPSHOT_MASK 0x01    //< Snapshot option
+#define OV2640_REG1_COM4 0x0D             //< Common control 4
+#define OV2640_COM4_CLOCK_MASK 0x04       //< Clock output power pin status
+#define OV2640_REG1_AEC 0x10              //< AEC[9:2] auto exposure ctrl
+#define OV2640_REG1_CLKRC 0x11            //< Clock rate control
+#define OV2640_CLKRC_DOUBLE_MASK 0x80     //< Internal freq doubler mask
+#define OV2640_CLKRC_DOUBLE_OFF 0x00      //< Internal freq doubler off
+#define OV2640_CLKRC_DOUBLE_ON 0x80       //< Internal freq doubler on
+#define OV2640_CLKRC_DIV_MASK 0x3F        //< Clock divider mask
+#define OV2640_REG1_COM7 0x12             //< Common control 7
+#define OV2640_COM7_SRST_MASK 0x80        //< System reset mask
+#define OV2640_COM7_RES_MASK 0x70         //< Resolution mask
+#define OV2640_COM7_RES_UXGA 0x00         //< UXGA (full size) mode
+#define OV2640_COM7_RES_CIF 0x10          //< CIF mode
+#define OV2640_COM7_RES_SVGA 0x40         //< SVGA mode
+#define OV2640_COM7_ZOOM_MASK 0x04        //< Zoom mode
+#define OV2640_COM7_COLORBAR_MASK 0x02    //< Color bar test pattern enable
+#define OV2640_REG1_COM8 0x13             //< Common control 8
+#define OV2640_COM8_BANDING_MASK 0x20     //< Banding filter select mask
+#define OV2640_COM8_BANDING_OFF 0x00      //< Banding filter off
+#define OV2640_COM8_BANDING_ON 0x20       //< Banding filter on
+#define OV2640_COM8_AGC_MASK 0x04         //< AGC auto/manual select mask
+#define OV2640_COM8_AGC_MANUAL 0x00       //< Manual gain
+#define OV2640_COM8_AGC_AUTO 0x04         //< Auto gain
+#define OV2640_COM8_EXP_MASK 0x04         //< Exposure control mask
+#define OV2640_COM8_EXP_MANUAL 0x00       //< Manual exposure
+#define OV2640_COM8_EXP_AUTO 0x04         //< Auto exposure
+#define OV2640_REG1_COM9 0x14             //< Common control 9
+#define OV2640_COM9_AGC_GAIN_MASK 0xE0    //< AGC gain ceiling mask, GH[2:0]
+#define OV2640_COM9_AGC_GAIN_2X 0x00      //< 2x
+#define OV2640_COM9_AGC_GAIN_4X 0x20      //< 4x
+#define OV2640_COM9_AGC_GAIN_8X 0x40      //< 8x
+#define OV2640_COM9_AGC_GAIN_16X 0x60     //< 16x
+#define OV2640_COM9_AGC_GAIN_32X 0x80     //< 32x
+#define OV2640_COM9_AGC_GAIN_64X 0xA0     //< 64x
+#define OV2640_COM9_AGC_GAIN_128X 0xC0    //< 128x
+
+
+
+
+
+
+
+// OV7670 registers
 #define OV7670_REG_GAIN 0x00               //< AGC gain bits 7:0 (9:8 in VREF)
 #define OV7670_REG_BLUE 0x01               //< AWB blue channel gain
 #define OV7670_REG_RED 0x02                //< AWB red channel gain
@@ -279,8 +461,6 @@ typedef struct {
 #define OV7670_REG_ABLC1 0xB1              //< ABLC enable
 #define OV7670_REG_THL_ST 0xB3             //< ABLC target
 #define OV7670_REG_SATCTR 0xC9             //< Saturation control
-
-#define OV7670_REG_LAST OV7670_REG_SATCTR //< Maximum register address
 
 extern OV7670_status OV7670_arch_begin(OV7670_host *host);
 
