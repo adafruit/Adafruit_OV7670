@@ -293,9 +293,12 @@ typedef struct {
 // These register names are preceded by 'REG0' as a bank-select reminder
 #define OV2640_REG0_R_BYPASS 0x05          //< Bypass DSP
 #define OV2640_R_BYPASS_MASK 0x01          //< R_BYPASS bypass DSP mask
+#define OV2640_R_BYPASS_DSP_ENABLE 0x00    //< R_BYPASS enable DSP
+#define OV2640_R_BYPASS_DSP_BYPASS 0x01    //< R_BYPASS bypass DSP
 #define OV2640_REG0_QS 0x44                //< Quantization scale factor
 #define OV2640_REG0_CTRLI 0x50             //< ?
 #define OV2640_CTRLI_LP_DP_MASK 0x80       //< LP_DP mask
+#define OV2640_CTRLI_ROUND_MASK 0x40       //< Round mask
 #define OV2640_CTRLI_V_DIV_MASK 0x38       //< V_DIVIDER mask
 #define OV2640_CTRLI_H_DIV_MASK 0x07       //< H_DIVIDER mask
 #define OV2640_REG0_HSIZE 0x51             //< H_SIZE[7:0] (real/4)
@@ -329,7 +332,7 @@ typedef struct {
 #define OV2640_REG0_CTRL3 0x87             //< Module enable, continued
 #define OV2640_CTRL3_BPC_MASK 0x80         //< BPC mask
 #define OV2640_CTRL3_WPC_MASK 0x40         //< WPC mask
-#define OV2640_REG0_SIZEL 0x87             //< HSIZE, VSIZE bits
+#define OV2640_REG0_SIZEL 0x8C             //< HSIZE, VSIZE bits
 #define OV2640_REG0_HSIZE8 0xC0            //< Image horiz size HSIZE[10:3]
 #define OV2640_REG0_VSIZE8 0xC1            //< Image vert size VSIZE[10:3]
 #define OV2640_REG0_CTRL0 0xC2             //< Module enable, continued
