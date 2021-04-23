@@ -413,10 +413,10 @@ typedef struct {
 #define OV2640_COM2_STANDBY_MASK 0x10      //< Standby mode mask
 #define OV2640_COM2_PINUSE_MASK 0x04       //< PWDN/RESETB as SLVS/SLHS mask
 #define OV2640_COM2_DRIVE_MASK 0x03        //< Output drive select mask
-#define OV2640_COM2_DRIVE_1 0x00           //< 1x
-#define OV2640_COM2_DRIVE_3 0x01           //< 3x (sic)
-#define OV2640_COM2_DRIVE_2 0x02           //< 2x (sic)
-#define OV2640_COM2_DRIVE_4 0x03           //< 4x
+#define OV2640_COM2_DRIVE_1X 0x00          //< 1x
+#define OV2640_COM2_DRIVE_3X 0x01          //< 3x (sic)
+#define OV2640_COM2_DRIVE_2X 0x02          //< 2x (sic)
+#define OV2640_COM2_DRIVE_4X 0x03          //< 4x
 #define OV2640_REG1_PIDH 0x0A              //< Product ID MSB (read only)
 #define OV2640_REG1_PIDL 0x0B              //< Product ID LSB (read only)
 #define OV2640_REG1_COM3 0x0C              //< Common control 3
@@ -448,9 +448,9 @@ typedef struct {
 #define OV2640_COM8_AGC_MASK 0x04          //< AGC auto/manual select mask
 #define OV2640_COM8_AGC_MANUAL 0x00        //< Manual gain
 #define OV2640_COM8_AGC_AUTO 0x04          //< Auto gain
-#define OV2640_COM8_EXP_MASK 0x04          //< Exposure control mask
+#define OV2640_COM8_EXP_MASK 0x01          //< Exposure control mask
 #define OV2640_COM8_EXP_MANUAL 0x00        //< Manual exposure
-#define OV2640_COM8_EXP_AUTO 0x04          //< Auto exposure
+#define OV2640_COM8_EXP_AUTO 0x01          //< Auto exposure
 #define OV2640_REG1_COM9 0x14              //< Common control 9
 #define OV2640_COM9_AGC_GAIN_MASK 0xE0     //< AGC gain ceiling mask, GH[2:0]
 #define OV2640_COM9_AGC_GAIN_2X 0x00       //< 2x
