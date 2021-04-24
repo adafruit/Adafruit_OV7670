@@ -15,25 +15,25 @@
 // must be contiguous but are otherwise configurable.
 static uint16_t ov7670_pio_opcodes[] = {
 #if 0
-  // Since PCLK is masked through HSYNC, and FIFO is cleared on VSYNC,
-  // no pins other than PCLK need the wait checks.
-  0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
-  0b0010000010000000, // WAIT 1 GPIO 0 -- rising edge
-  0b0100000000001000, // IN PINS 8 -- 8 bits into RX FIFO
+    // Since PCLK is masked through HSYNC, and FIFO is cleared on VSYNC,
+    // no pins other than PCLK need the wait checks.
+    0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
+    0b0010000010000000, // WAIT 1 GPIO 0 -- rising edge
+    0b0100000000001000, // IN PINS 8 -- 8 bits into RX FIFO
 #else
-  // Only monitor PCLK when HSYNC is high. This is more noise-immune
-  // than the prior approach.
-  0b0010000010000000, // WAIT 1 GPIO 0 (mask in HSYNC pin before use)
-  0b0010000010000000, // WAIT 1 GPIO 0 (mask in PCLK pin before use)
-  0b0100000000001000, // IN PINS 8 -- 8 bits into RX FIFO
-  0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
+    // Only monitor PCLK when HSYNC is high. This is more noise-immune
+    // than the prior approach.
+    0b0010000010000000, // WAIT 1 GPIO 0 (mask in HSYNC pin before use)
+    0b0010000010000000, // WAIT 1 GPIO 0 (mask in PCLK pin before use)
+    0b0100000000001000, // IN PINS 8 -- 8 bits into RX FIFO
+    0b0010000000000000, // WAIT 0 GPIO 0 (mask in PCLK pin before use)
 #endif
 };
 
 struct pio_program ov7670_pio_program = {
-  .instructions = ov7670_pio_opcodes,
-  .length = sizeof ov7670_pio_opcodes / sizeof ov7670_pio_opcodes[0],
-  .origin = -1,
+    .instructions = ov7670_pio_opcodes,
+    .length = sizeof ov7670_pio_opcodes / sizeof ov7670_pio_opcodes[0],
+    .origin = -1,
 };
 
 // Each supported architecture MUST provide this function with this name,
@@ -69,10 +69,13 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   // TO DO: verify the DATA pins are contiguous.
 
   // Set up GPIO pins (other than I2C, done in the Wire lib)
-  gpio_init(host->pins->pclk); gpio_set_dir(host->pins->pclk, GPIO_IN);
-  gpio_init(host->pins->vsync); gpio_set_dir(host->pins->vsync, GPIO_IN);
-  gpio_init(host->pins->hsync); gpio_set_dir(host->pins->hsync, GPIO_IN);
-  for(uint8_t i=0; i<8; i++) {
+  gpio_init(host->pins->pclk);
+  gpio_set_dir(host->pins->pclk, GPIO_IN);
+  gpio_init(host->pins->vsync);
+  gpio_set_dir(host->pins->vsync, GPIO_IN);
+  gpio_init(host->pins->hsync);
+  gpio_set_dir(host->pins->hsync, GPIO_IN);
+  for (uint8_t i = 0; i < 8; i++) {
     gpio_init(host->pins->data[i]);
     gpio_set_dir(host->pins->data[i], GPIO_IN);
   }
@@ -114,7 +117,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   // This can improve GPIO responsiveness but is less noise-immune.
   uint32_t mask = (0xFF << host->pins->data[0]) | (1 << host->pins->pclk);
   // Maybe not. Disabled for now.
-  //host->arch->pio->input_sync_bypass = mask;
+  // host->arch->pio->input_sync_bypass = mask;
 
   // PIO read from camera also requires DMA and interrupts, which are NOT
   // set up here! These are done in the platform arch_begin(), as they

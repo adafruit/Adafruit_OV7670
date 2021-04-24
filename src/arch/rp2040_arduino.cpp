@@ -21,9 +21,9 @@ arch_begin() and capture() in each .cpp and call it done.
 
 #if defined(ARDUINO_ARCH_RP2040)
 #include "Adafruit_OV7670.h"
+#include "hardware/irq.h"
 #include "wiring_private.h" // pinPeripheral() function
 #include <Arduino.h>
-#include "hardware/irq.h"
 
 // Because interrupts exist outside the class context, but our interrupt
 // needs to access to object- and arch-specific data like the camera buffer
@@ -128,11 +128,11 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   channel_config_set_write_increment(&arch.dma_config, true);
   // Set PIO RX as DMA trigger. Input shift register saturates at 16 bits
   // (1 pixel), configured in data size above and in PIO setup elsewhere.
-  channel_config_set_dreq(&arch.dma_config, pio_get_dreq(arch.pio, arch.sm,
-                          false));
+  channel_config_set_dreq(&arch.dma_config,
+                          pio_get_dreq(arch.pio, arch.sm, false));
   // Set up initial DMA xfer, but don't trigger (that's done in interrupt)
   dma_channel_configure(arch.dma_channel, &arch.dma_config, getBuffer(),
-    &arch.pio->rxf[arch.sm], width() * height(), false);
+                        &arch.pio->rxf[arch.sm], width() * height(), false);
 
   // Set up end-of-DMA interrupt
   dma_channel_set_irq0_enabled(arch.dma_channel, true);
@@ -141,8 +141,8 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
 
   // SET UP VSYNC INTERRUPT ------------------------------------------------
 
-  gpio_set_irq_enabled_with_callback(pins.vsync, GPIO_IRQ_EDGE_RISE,
-                                     true, &ov7670_vsync_irq);
+  gpio_set_irq_enabled_with_callback(pins.vsync, GPIO_IRQ_EDGE_RISE, true,
+                                     &ov7670_vsync_irq);
 
   return status;
 }

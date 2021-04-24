@@ -12,10 +12,10 @@
 #include <stdint.h>
 #endif // end platforms
 
-#include "hardware/gpio.h"
-#include "hardware/pwm.h"
-#include "hardware/pio.h"
 #include "../../hardware_dma/include/hardware/dma.h"
+#include "hardware/gpio.h"
+#include "hardware/pio.h"
+#include "hardware/pwm.h"
 
 typedef int8_t OV7670_pin;
 

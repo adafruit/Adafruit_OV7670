@@ -323,6 +323,7 @@ private:
   OV7670_colorspace space;   ///< RGB or YUV colorspace
   const uint8_t i2c_address; ///< I2C address
   const bool arch_defaults;  ///< If set, ignore arch struct, use defaults
+  camera_t camera_type;      ///< Camera model
 };
 
 // C-ACCESSIBLE FUNCTIONS --------------------------------------------------
