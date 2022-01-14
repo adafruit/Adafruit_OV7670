@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 P Burgess for Adafruit Industries
+//
+// SPDX-License-Identifier: MIT
+
 // This is the SAMD51-specific parts of OV7670 camera interfacing (device-
 // agnostic parts are in ov7670.c). It configures and accesses hardware-
 // specific peripherals (timer PWM and the parallel capture controller).

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 P Burgess for Adafruit Industries
+//
+// SPDX-License-Identifier: MIT
+
 #include "ov7670.h"
 
 // REQUIRED EXTERN FUNCTIONS -----------------------------------------------

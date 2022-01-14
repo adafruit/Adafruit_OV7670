@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 P Burgess for Adafruit Industries
+//
+// SPDX-License-Identifier: MIT
+
 /*
 This is the SAMD51- and Arduino-specific parts of OV7670 camera interfacing.
 Unlike the SAMD51-specific (but platform-agnostic) code in samd51.c, this

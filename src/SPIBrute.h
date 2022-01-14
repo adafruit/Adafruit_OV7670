@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 P Burgess for Adafruit Industries
+//
+// SPDX-License-Identifier: MIT
+
 #pragma once
 #if defined(__SAMD51__) // SAMD51 only
 #include <SPI.h>

@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 P Burgess for Adafruit Industries
+//
+// SPDX-License-Identifier: MIT
+
 // This class handles fast-as-possible writes to SPI, using direct register
 // accesses. It's used for TFT updates in the camera examples when
 // USE_SPI_DMA is not enabled in Adafruit_SPITFT.h (part of Adafruit_GFX).

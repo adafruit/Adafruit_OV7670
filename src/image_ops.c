@@ -1,3 +1,7 @@
+// SPDX-FileCopyrightText: 2020 P Burgess for Adafruit Industries
+//
+// SPDX-License-Identifier: MIT
+
 #include "image_ops.h"
 
 // These functions are preceded by "OV7670" even though they're not tied to
