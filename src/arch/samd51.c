@@ -29,69 +29,68 @@
 // SAMD51 host config sets up timer and parallel capture peripheral,
 // as these are mostly low-level register twiddles. It does NOT set up
 // DMA transfers, handled in higher-level calling code if needed.
-OV7670_status OV7670_arch_begin(OV7670_host *host) {
-
+OV7670_status OV7670_arch_begin(OV7670_host* host) {
   // LOOK UP TIMER OR TCC BASED ON ADDRESS IN HOST STRUCT ------------------
 
   static const struct {
-    void *base;       ///< TC or TCC peripheral base address
+    void* base;       ///< TC or TCC peripheral base address
     uint8_t GCLK_ID;  ///< Timer ID for GCLK->PCHCTRL
-    const char *name; ///< Printable timer ID for debug use
+    const char* name; ///< Printable timer ID for debug use
   } timer[] = {
 #if defined(TC0)
-    {TC0, TC0_GCLK_ID, "TC0"},
+      {TC0, TC0_GCLK_ID, "TC0"},
 #endif
 #if defined(TC1)
-    {TC1, TC1_GCLK_ID, "TC1"},
+      {TC1, TC1_GCLK_ID, "TC1"},
 #endif
 #if defined(TC2)
-    {TC2, TC2_GCLK_ID, "TC2"},
+      {TC2, TC2_GCLK_ID, "TC2"},
 #endif
 #if defined(TC3)
-    {TC3, TC3_GCLK_ID, "TC3"},
+      {TC3, TC3_GCLK_ID, "TC3"},
 #endif
 #if defined(TC4)
-    {TC4, TC4_GCLK_ID, "TC4"},
+      {TC4, TC4_GCLK_ID, "TC4"},
 #endif
 #if defined(TC5)
-    {TC5, TC5_GCLK_ID, "TC5"},
+      {TC5, TC5_GCLK_ID, "TC5"},
 #endif
 #if defined(TC6)
-    {TC6, TC6_GCLK_ID, "TC6"},
+      {TC6, TC6_GCLK_ID, "TC6"},
 #endif
 #if defined(TC7)
-    {TC7, TC7_GCLK_ID, "TC7"},
+      {TC7, TC7_GCLK_ID, "TC7"},
 #endif
 #if defined(TC8)
-    {TC8, TC8_GCLK_ID, "TC8"},
+      {TC8, TC8_GCLK_ID, "TC8"},
 #endif
 #if defined(TC9)
-    {TC9, TC9_GCLK_ID, "TC9"},
+      {TC9, TC9_GCLK_ID, "TC9"},
 #endif
 #if defined(TC10)
-    {TC10, TC10_GCLK_ID, "TC10"},
+      {TC10, TC10_GCLK_ID, "TC10"},
 #endif
 #if defined(TC11)
-    {TC11, TC11_GCLK_ID, "TC11"},
+      {TC11, TC11_GCLK_ID, "TC11"},
 #endif
 #if defined(TC12)
-    {TC12, TC12_GCLK_ID, "TC12"},
+      {TC12, TC12_GCLK_ID, "TC12"},
 #endif
-    {NULL, 0, NULL}, // NULL separator between TC and TCC lists
+      {NULL, 0, NULL}, // NULL separator between TC and TCC lists
 #if defined(TCC0)
-    {TCC0, TCC0_GCLK_ID, "TCC0"},
+      {TCC0, TCC0_GCLK_ID, "TCC0"},
 #endif
 #if defined(TCC1)
-    {TCC1, TCC1_GCLK_ID, "TCC1"},
+      {TCC1, TCC1_GCLK_ID, "TCC1"},
 #endif
 #if defined(TCC2)
-    {TCC2, TCC2_GCLK_ID, "TCC2"},
+      {TCC2, TCC2_GCLK_ID, "TCC2"},
 #endif
 #if defined(TCC3)
-    {TCC3, TCC3_GCLK_ID, "TCC3"},
+      {TCC3, TCC3_GCLK_ID, "TCC3"},
 #endif
 #if defined(TCC4)
-    {TCC4, TCC4_GCLK_ID, "TCC4"},
+      {TCC4, TCC4_GCLK_ID, "TCC4"},
 #endif
   };
 
@@ -124,6 +123,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
   while (!GCLK->PCHCTRL[id].bit.CHEN) // Wait for enable
     ;
 
+  // clang-format off
   if (is_tcc) { // Is a TCC peripheral
 
     Tcc *tcc = (Tcc *)timer[timer_list_index].base;
@@ -151,7 +151,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
     pinPeripheral(host->pins->xclk,
                   host->arch->xclk_pdec ? PIO_TCC_PDEC : PIO_TIMER_ALT);
 #else
-      // CircuitPython, etc. pin mux here
+    // CircuitPython, etc. pin mux here
 #endif
 
   } else { // Is a TC peripheral
@@ -167,6 +167,7 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
 #endif
 
   } // end TC/TCC
+  // clang-format on
 
   // SET UP PCC PERIPHERAL -------------------------------------------------
 
@@ -207,10 +208,9 @@ OV7670_status OV7670_arch_begin(OV7670_host *host) {
 }
 
 // Non-DMA capture function using previously-initialized PCC peripheral.
-void OV7670_capture(uint32_t *dest, uint16_t width, uint16_t height,
-                    volatile uint32_t *vsync_reg, uint32_t vsync_bit,
-                    volatile uint32_t *hsync_reg, uint32_t hsync_bit) {
-
+void OV7670_capture(uint32_t* dest, uint16_t width, uint16_t height,
+                    volatile uint32_t* vsync_reg, uint32_t vsync_bit,
+                    volatile uint32_t* hsync_reg, uint32_t hsync_bit) {
   while (*vsync_reg & vsync_bit)
     ; // Wait for VSYNC low (frame end)
   OV7670_disable_interrupts();

@@ -17,9 +17,9 @@
 // functions in question aren't performance-oriented anyway (typically used
 // just once on startup, or during I2C transfers which are slow anyway).
 
-extern void OV7670_print(char *str);
-extern int OV7670_read_register(void *platform, uint8_t reg);
-extern void OV7670_write_register(void *platform, uint8_t reg, uint8_t value);
+extern void OV7670_print(char* str);
+extern int OV7670_read_register(void* platform, uint8_t reg);
+extern void OV7670_write_register(void* platform, uint8_t reg, uint8_t value);
 
 // UTILITY FUNCTIONS -------------------------------------------------------
 
@@ -28,7 +28,7 @@ extern void OV7670_write_register(void *platform, uint8_t reg, uint8_t value);
 // this points to a C++ object so we can find our way back to the correct
 // I2C peripheral (so this code doesn't have to deal with platform-specific
 // I2C calls).
-void OV7670_write_list(void *platform, OV7670_command *cmd) {
+void OV7670_write_list(void* platform, OV7670_command* cmd) {
   for (int i = 0; cmd[i].reg <= OV7670_REG_LAST; i++) {
 #if 0 // DEBUG
     char buf[50];
@@ -160,7 +160,7 @@ static const OV7670_command
         {OV7670_REG_LAST + 1, 0x00},       // End-of-data marker
 };
 
-OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace colorspace,
+OV7670_status OV7670_begin(OV7670_host* host, OV7670_colorspace colorspace,
                            OV7670_size size, float fps) {
   OV7670_status status;
 
@@ -224,8 +224,7 @@ OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace colorspace,
 // If platform is NULL, no registers are set, a fps request/return can be
 // evaluated without reconfiguring the camera, or without it even started.
 
-float OV7670_set_fps(void *platform, float fps) {
-
+float OV7670_set_fps(void* platform, float fps) {
   // Pixel clock (PCLK), which determines overall frame rate, is a
   // function of XCLK input frequency (OV7670_XCLK_HZ), a PLL multiplier
   // and then an integer division factor (1-32). These are the available
@@ -294,7 +293,7 @@ float OV7670_set_fps(void *platform, float fps) {
 // Sets up PCLK dividers and sets H/V start/stop window. Rather than
 // rolling this into OV7670_set_size(), it's kept separate so test code
 // can experiment with different settings to find ideal defaults.
-void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
+void OV7670_frame_control(void* platform, uint8_t size, uint8_t vstart,
                           uint16_t hstart, uint8_t edge_offset,
                           uint8_t pclk_delay) {
   uint8_t value;
@@ -336,9 +335,9 @@ void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
   uint16_t hstop = (hstart + 640) % 784;
   OV7670_write_register(platform, OV7670_REG_HSTART, hstart >> 3);
   OV7670_write_register(platform, OV7670_REG_HSTOP, hstop >> 3);
-  OV7670_write_register(platform, OV7670_REG_HREF,
-                        (edge_offset << 6) | ((hstop & 0b111) << 3) |
-                            (hstart & 0b111));
+  OV7670_write_register(
+      platform, OV7670_REG_HREF,
+      (edge_offset << 6) | ((hstop & 0b111) << 3) | (hstart & 0b111));
   OV7670_write_register(platform, OV7670_REG_VSTART, vstart >> 2);
   OV7670_write_register(platform, OV7670_REG_VSTOP, vstop >> 2);
   OV7670_write_register(platform, OV7670_REG_VREF,
@@ -347,7 +346,7 @@ void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
   OV7670_write_register(platform, OV7670_REG_SCALING_PCLK_DELAY, pclk_delay);
 }
 
-void OV7670_set_size(void *platform, OV7670_size size) {
+void OV7670_set_size(void* platform, OV7670_size size) {
   // Array of five window settings, index of each (0-4) aligns with the five
   // OV7670_size enumeration values. If enum changes, list must change!
   static struct {
@@ -378,7 +377,7 @@ void OV7670_set_size(void *platform, OV7670_size size) {
 //       seems to 'stick' in some cases when trying to turn
 //       this off. Might want to try always having night mode
 //       enabled but using 1:1 frame setting as 'off'.
-void OV7670_night(void *platform, OV7670_night_mode night) {
+void OV7670_night(void* platform, OV7670_night_mode night) {
   // Table of bit patterns for the different supported night modes.
   // There's a "same frame rate" option for OV7670 night mode but it
   // doesn't seem to do anything useful and can be skipped over.
@@ -399,7 +398,7 @@ void OV7670_night(void *platform, OV7670_night_mode night) {
 // Also note: mirrored image isn't always centered quite the same,
 // looks like frame control settings might need to be tweaked
 // depending on flips. Similar issue to color bars?
-void OV7670_flip(void *platform, bool flip_x, bool flip_y) {
+void OV7670_flip(void* platform, bool flip_x, bool flip_y) {
   // Read current MVFP register setting, so we don't corrupt any
   // reserved bits or the "black sun" bit if it was previously set.
   uint8_t mvfp = OV7670_read_register(platform, OV7670_REG_MVFP);
@@ -419,7 +418,7 @@ void OV7670_flip(void *platform, bool flip_x, bool flip_y) {
 
 // Selects one of the camera's test patterns (or disable).
 // See Adafruit_OV7670.h for notes about minor visual bug here.
-void OV7670_test_pattern(void *platform, OV7670_pattern pattern) {
+void OV7670_test_pattern(void* platform, OV7670_pattern pattern) {
   // Read current SCALING_XSC and SCALING_YSC register settings,
   // so image scaling settings aren't corrupted.
   uint8_t xsc = OV7670_read_register(platform, OV7670_REG_SCALING_XSC);
@@ -441,7 +440,7 @@ void OV7670_test_pattern(void *platform, OV7670_pattern pattern) {
 
 // Reformat YUV gray component to RGB565 for TFT preview.
 // Big-endian in and out.
-void OV7670_Y2RGB565(uint16_t *ptr, uint32_t len) {
+void OV7670_Y2RGB565(uint16_t* ptr, uint32_t len) {
   while (len--) {
     uint8_t y = *ptr & 0xFF; // Y (brightness) component of YUV
     uint16_t rgb = ((y >> 3) * 0x801) | ((y & 0xFC) << 3); // to RGB565
