@@ -19,10 +19,11 @@
 
 #pragma once
 
-#include "image_ops.h"
-#include "ov7670.h"
 #include <Adafruit_ZeroDMA.h>
 #include <Wire.h>
+
+#include "image_ops.h"
+#include "ov7670.h"
 
 /** Buffer reallocation behaviors requested of setSize() */
 typedef enum {
@@ -35,7 +36,7 @@ typedef enum {
     @brief  Class encapsulating OV7670 camera functionality.
 */
 class Adafruit_OV7670 {
-public:
+ public:
   /*!
     @brief  Constructor for Adafruit_OV7670 class.
     @param  addr      I2C address of camera.
@@ -50,8 +51,8 @@ public:
                       always of type OV7670_arch, but the specific elements
                       within will vary with each supported architecture.
   */
-  Adafruit_OV7670(uint8_t addr = OV7670_ADDR, OV7670_pins *pins_ptr = NULL,
-                  TwoWire *twi_ptr = &Wire, OV7670_arch *arch_ptr = NULL);
+  Adafruit_OV7670(uint8_t addr = OV7670_ADDR, OV7670_pins* pins_ptr = NULL,
+                  TwoWire* twi_ptr = &Wire, OV7670_arch* arch_ptr = NULL);
   ~Adafruit_OV7670(); // Destructor
 
   /*!
@@ -109,7 +110,9 @@ public:
     @brief   Get address of image buffer being used by camera.
     @return  uint16_t pointer to image data in RGB565 format.
   */
-  uint16_t *getBuffer(void) { return buffer; }
+  uint16_t* getBuffer(void) {
+    return buffer;
+  }
 
   /*!
     @brief  Pause DMA background capture (if supported by architecture)
@@ -130,13 +133,17 @@ public:
     @brief   Get image width of camera's current resolution setting.
     @return  Width in pixels.
   */
-  uint16_t width(void) { return _width; }
+  uint16_t width(void) {
+    return _width;
+  }
 
   /*!
     @brief   Get image height of camera's current resolution setting.
     @return  Height in pixels.
   */
-  uint16_t height(void) { return _height; }
+  uint16_t height(void) {
+    return _height;
+  }
 
   /*!
     @brief   Change camera resolution post-begin(). Not yet implemented.
@@ -191,7 +198,9 @@ public:
                    OV7670_NIGHT_MODE_4    1/4 frame rate
                    OV7670_NIGHT_MODE_8    1/8 frame rate
   */
-  void night(OV7670_night_mode night) { OV7670_night(this, night); }
+  void night(OV7670_night_mode night) {
+    OV7670_night(this, night);
+  }
 
   /*!
     @brief  Flip camera output on horizontal and/or vertical axes.
@@ -202,7 +211,9 @@ public:
             avoiding that terminology here that it might be mistaken for a
             split-down-middle-and-reflect funhouse effect, which it isn't.
   */
-  void flip(bool flip_x, bool flip_y) { OV7670_flip(this, flip_x, flip_y); }
+  void flip(bool flip_x, bool flip_y) {
+    OV7670_flip(this, flip_x, flip_y);
+  }
 
   /*!
     @brief  Enable/disable camera test pattern output.
@@ -236,7 +247,9 @@ public:
             not in-camera, and must be applied to frame(s) manually.
             Image in memory will be overwritten.
   */
-  void image_negative(void) { OV7670_image_negative(buffer, _width, _height); };
+  void image_negative(void) {
+    OV7670_image_negative(buffer, _width, _height);
+  };
 
   /*!
     @brief  Decimate an image to only it's min/max values (ostensibly
@@ -315,11 +328,11 @@ public:
   */
   void Y2RGB565(void);
 
-private:
+ private:
   OV7670_status arch_begin(OV7670_colorspace colorspace, OV7670_size size,
                            float fps);
-  TwoWire *wire;             ///< I2C interface
-  uint16_t *buffer;          ///< Camera buffer allocated by lib
+  TwoWire* wire;             ///< I2C interface
+  uint16_t* buffer;          ///< Camera buffer allocated by lib
   uint32_t buffer_size;      ///< Size of camera buffer, in bytes
   OV7670_pins pins;          ///< Camera physical connections
   OV7670_arch arch;          ///< Architecture-specific peripheral info
@@ -345,7 +358,7 @@ extern "C" {
     @param  str  String to print to the Serial Console. Must contain its
                  own newline character if needed.
 */
-void OV7670_print(char *str);
+void OV7670_print(char* str);
 
 /*!
     @brief   Reads value of one register from the OV7670 camera over I2C.
@@ -358,7 +371,7 @@ void OV7670_print(char *str);
     @return  Integer value: 0-255 (register contents) on successful read,
              -1 on error.
 */
-int OV7670_read_register(void *obj, uint8_t reg);
+int OV7670_read_register(void* obj, uint8_t reg);
 
 /*!
     @brief  Writes value of one register to the OV7670 camera over I2C.
@@ -371,6 +384,6 @@ int OV7670_read_register(void *obj, uint8_t reg);
     @param  value  Value to write, 0-255.
 
 */
-void OV7670_write_register(void *obj, uint8_t reg, uint8_t value);
+void OV7670_write_register(void* obj, uint8_t reg, uint8_t value);
 
 }; // end extern "C"

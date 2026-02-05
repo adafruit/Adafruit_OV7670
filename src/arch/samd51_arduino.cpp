@@ -24,10 +24,11 @@ arch_begin() and capture() in each .cpp and call it done.
 */
 
 #if defined(__SAMD51__) && defined(ARDUINO)
-#include "Adafruit_OV7670.h"
-#include "wiring_private.h" // pinPeripheral() function
 #include <Adafruit_ZeroDMA.h>
 #include <Arduino.h>
+
+#include "Adafruit_OV7670.h"
+#include "wiring_private.h" // pinPeripheral() function
 
 // Because interrupts exist outside the class context, but our interrupt
 // needs to access to an active ZeroDMA object, a separate ZeroDMA pointer
@@ -36,7 +37,7 @@ arch_begin() and capture() in each .cpp and call it done.
 // single parallel capture peripheral).
 
 static Adafruit_ZeroDMA dma;
-static DmacDescriptor *descriptor;       ///< DMA descriptor
+static DmacDescriptor* descriptor;       ///< DMA descriptor
 static volatile bool frameReady = false; // true at end-of-frame
 static volatile bool suspended = false;
 
@@ -51,7 +52,9 @@ static void startFrame(void) {
 }
 
 // End-of-DMA-transfer callback
-static void dmaCallback(Adafruit_ZeroDMA *dma) { frameReady = true; }
+static void dmaCallback(Adafruit_ZeroDMA* dma) {
+  frameReady = true;
+}
 
 // Since ZeroDMA suspend/resume functions don't yet work, these functions
 // use static vars to indicate whether to trigger DMA transfers or hold off
@@ -74,7 +77,6 @@ void Adafruit_OV7670::resume(void) {
 
 OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
                                           OV7670_size size, float fps) {
-
   // BASE INITIALIZATION (PLATFORM-AGNOSTIC) -------------------------------
   // This calls the device-neutral C init function OV7670_begin(), which in
   // turn calls the device-specific C init OV7670_arch_begin() in samd51.c.
@@ -106,12 +108,12 @@ OV7670_status Adafruit_OV7670::arch_begin(OV7670_colorspace colorspace,
   dma.setPriority(DMA_PRIORITY_3);
 
   // Use 32-bit PCC transfers (4 bytes accumulate in RHR.reg)
-  descriptor = dma.addDescriptor((void *)(&PCC->RHR.reg), // Move from here
-                                 (void *)buffer,          // to here
-                                 _width * _height / 2,    // this many
-                                 DMA_BEAT_SIZE_WORD,      // 32-bit words
-                                 false,                   // Don't src++
-                                 true);                   // Do dest++
+  descriptor = dma.addDescriptor((void*)(&PCC->RHR.reg), // Move from here
+                                 (void*)buffer,          // to here
+                                 _width * _height / 2,   // this many
+                                 DMA_BEAT_SIZE_WORD,     // 32-bit words
+                                 false,                  // Don't src++
+                                 true);                  // Do dest++
 
   // A pin FALLING interrupt is used to detect the start of a new frame.
   // Seems like the PCC RXBUFF and/or ENDRX interrupts could take care
@@ -136,7 +138,7 @@ void Adafruit_OV7670::capture(void) {
   hsync_reg = &PORT->Group[g_APinDescription[PIN_PCC_DEN2].ulPort].IN.reg;
   hsync_bit = 1ul << g_APinDescription[PIN_PCC_DEN2].ulPin;
 
-  OV7670_capture((uint32_t *)buffer, _width, _height, vsync_reg, vsync_bit,
+  OV7670_capture((uint32_t*)buffer, _width, _height, vsync_reg, vsync_bit,
                  hsync_reg, hsync_bit);
 }
 
