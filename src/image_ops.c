@@ -10,7 +10,7 @@
 
 // Negative image (avoiding 'invert' terminology as that could be confused
 // for an image flip operation, which is a different function).
-void OV7670_image_negative(uint16_t *pixels, uint16_t width, uint16_t height) {
+void OV7670_image_negative(uint16_t* pixels, uint16_t width, uint16_t height) {
   // Working 32 bits at a time is slightly faster. This is dirty pool,
   // relying on the fact that the camera lib currently only supports
   // even image sizes (the pixel count will always be a multiple of 2)
@@ -18,7 +18,7 @@ void OV7670_image_negative(uint16_t *pixels, uint16_t width, uint16_t height) {
   // on a 32-bit-safe boundary. This is one of those operations that
   // can probably be implemented through the camera's gamma curve
   // settings, and if so this function will go away.
-  uint32_t *p32 = (uint32_t *)pixels;
+  uint32_t* p32 = (uint32_t*)pixels;
   uint32_t i, num_pairs = width * height / 2;
   for (i = 0; i < num_pairs; i++) {
     p32[i] ^= 0xFFFFFFFF;
@@ -28,7 +28,7 @@ void OV7670_image_negative(uint16_t *pixels, uint16_t width, uint16_t height) {
 // Binary threshold, output is "black and white" per-channel. Pass in
 // threshold level as 0-255, this will be quantized to an appropriate
 // range for the colorspace.
-void OV7670_image_threshold(OV7670_colorspace space, uint16_t *pixels,
+void OV7670_image_threshold(OV7670_colorspace space, uint16_t* pixels,
                             uint16_t width, uint16_t height,
                             uint8_t threshold) {
   uint32_t i, num_pixels = width * height;
@@ -54,7 +54,7 @@ void OV7670_image_threshold(OV7670_colorspace space, uint16_t *pixels,
       pixels[i] = __builtin_bswap16(rgb565out); //   Back to cam-native endian
     }
   } else {                                    // YUV...
-    uint8_t *p8 = (uint8_t *)pixels;          // Separate Y's, U's, V's
+    uint8_t* p8 = (uint8_t*)pixels;           // Separate Y's, U's, V's
     num_pixels *= 2;                          // Actually num bytes now
     for (i = 0; i < num_pixels; i++) {        // For each byte...
       p8[i] = (p8[i] >= threshold) ? 255 : 0; //   Threshold to 0 or 255
@@ -63,7 +63,7 @@ void OV7670_image_threshold(OV7670_colorspace space, uint16_t *pixels,
 }
 
 // Reduce color fidelity to a specified number of steps or levels.
-void OV7670_image_posterize(OV7670_colorspace space, uint16_t *pixels,
+void OV7670_image_posterize(OV7670_colorspace space, uint16_t* pixels,
                             uint16_t width, uint16_t height, uint8_t levels) {
   uint32_t i, num_pixels = width * height;
 
@@ -106,7 +106,7 @@ void OV7670_image_posterize(OV7670_colorspace space, uint16_t *pixels,
       for (i = 0; i < 256; i++) {
         table[i] = (((i * levels + lm1d2) / 256) * 255 + lm1d2) / lm1;
       }
-      uint8_t *p8 = (uint8_t *)pixels;   // Separate Ys, Us, Vs
+      uint8_t* p8 = (uint8_t*)pixels;    // Separate Ys, Us, Vs
       num_pixels *= 2;                   // Actually num bytes now
       for (i = 0; i < num_pixels; i++) { // For each byte...
         p8[i] = table[p8[i]];            //   Remap through lookup table
@@ -116,7 +116,7 @@ void OV7670_image_posterize(OV7670_colorspace space, uint16_t *pixels,
 }
 
 // Shower door effect.
-void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
+void OV7670_image_mosaic(OV7670_colorspace space, uint16_t* pixels,
                          uint16_t width, uint16_t height, uint8_t tile_width,
                          uint8_t tile_height) {
   if ((tile_width <= 1) && (tile_height <= 1)) {
@@ -286,10 +286,10 @@ void OV7670_image_mosaic(OV7670_colorspace space, uint16_t *pixels,
 // median to operate on all source image pixels, no black border or other
 // uglies. Pixels within each channel are not sequential in memory, but
 // increment by 3's -- corresponding to the prior, current and next rows.
-static void OV7670_filter_row_prep(uint16_t *src, uint8_t *r_dst,
+static void OV7670_filter_row_prep(uint16_t* src, uint8_t* r_dst,
                                    uint16_t width, uint32_t channel_bytes) {
-  uint8_t *g_dst = &r_dst[channel_bytes];
-  uint8_t *b_dst = &g_dst[channel_bytes];
+  uint8_t* g_dst = &r_dst[channel_bytes];
+  uint8_t* b_dst = &g_dst[channel_bytes];
 
   uint16_t x, rgb, offset = 3;
   for (x = 0; x < width; x++) {        // For each pixel in row...
@@ -309,12 +309,12 @@ static void OV7670_filter_row_prep(uint16_t *src, uint8_t *r_dst,
 }
 
 // Copy a single row in the 3x3 filter weird increment-by-3 pixel format.
-static void OV7670_filter_row_copy(uint8_t *r_src, uint8_t *r_dst,
+static void OV7670_filter_row_copy(uint8_t* r_src, uint8_t* r_dst,
                                    uint16_t width, uint32_t channel_bytes) {
-  uint8_t *g_src = &r_src[channel_bytes];
-  uint8_t *b_src = &g_src[channel_bytes];
-  uint8_t *g_dst = &r_dst[channel_bytes];
-  uint8_t *b_dst = &g_dst[channel_bytes];
+  uint8_t* g_src = &r_src[channel_bytes];
+  uint8_t* b_src = &g_src[channel_bytes];
+  uint8_t* g_dst = &r_dst[channel_bytes];
+  uint8_t* b_dst = &g_dst[channel_bytes];
   uint16_t x, offset;
 
   for (x = offset = 0; x < width; x++, offset += 3) {
@@ -325,8 +325,7 @@ static void OV7670_filter_row_copy(uint8_t *r_src, uint8_t *r_dst,
 }
 
 // Determine median value of 9-element list
-static inline uint8_t OV7670_med9(uint8_t *list) {
-
+static inline uint8_t OV7670_med9(uint8_t* list) {
   // Find median value in a list of 9 (index 0 to 8). Ostensibly,
   // conceptually, this would involve sorting the list (ascending or
   // descending, doesn't matter) and returning the value at index 4.
@@ -402,15 +401,15 @@ static inline uint8_t OV7670_med9(uint8_t *list) {
 // lots of pixel comparisons. Requires a chunk of RAM temporarily,
 // ((width + 2) * 3 + height - 1) * 3 bytes, or about 3.6K for a 320x240
 // RGB image. YUV is not currently supported.
-void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
+void OV7670_image_median(OV7670_colorspace space, uint16_t* pixels,
                          uint16_t width, uint16_t height) {
   if (space == OV7670_COLOR_RGB) {
-    uint8_t *buf;
+    uint8_t* buf;
     uint32_t buf_bytes_per_channel = (width + 2) * 3 + height - 1;
-    if ((buf = (uint8_t *)malloc(buf_bytes_per_channel * 3))) {
-      uint8_t *rptr = buf;                          // -> red buffer
-      uint8_t *gptr = &rptr[buf_bytes_per_channel]; // -> green buffer
-      uint8_t *bptr = &gptr[buf_bytes_per_channel]; // -> blue buffer
+    if ((buf = (uint8_t*)malloc(buf_bytes_per_channel * 3))) {
+      uint8_t* rptr = buf;                          // -> red buffer
+      uint8_t* gptr = &rptr[buf_bytes_per_channel]; // -> green buffer
+      uint8_t* bptr = &gptr[buf_bytes_per_channel]; // -> blue buffer
 
       // For each of the three channel pointers (rptr, gptr, bptr),
       // ptr[0] is the first pixel of the row ABOVE the current one,
@@ -427,7 +426,7 @@ void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
       // (Because edge pixels are repeated so we can 3x3 filter full image)
       OV7670_filter_row_copy(&rptr[1], rptr, width + 2, buf_bytes_per_channel);
 
-      uint16_t *ptr = pixels; // Dest pointer, back into source image
+      uint16_t* ptr = pixels; // Dest pointer, back into source image
       uint16_t x, y, offset, rgb;
       uint8_t r_med, g_med, b_med;
       for (y = 0; y < height; y++) { // For each row of image...
@@ -472,7 +471,7 @@ void OV7670_image_median(OV7670_colorspace space, uint16_t *pixels,
 // pixel and the four pixels above, below, left and right, sets result 'on'
 // if any of those 4 exceeds a given threshold. Note to future self: might
 // instead evaluate sum-of-four rather than any-of-four.
-static inline bool OV7670_edge9(uint8_t *list, uint8_t sensitivity) {
+static inline bool OV7670_edge9(uint8_t* list, uint8_t sensitivity) {
   int8_t center = (int16_t)list[4];                 // Must be signed!
   return ((abs(center - list[1]) >= sensitivity) || // left
           (abs(center - list[3]) >= sensitivity) || // up
@@ -483,16 +482,15 @@ static inline bool OV7670_edge9(uint8_t *list, uint8_t sensitivity) {
 // Edge detection filter. Requires a chunk of RAM temporarily,
 // ((width + 2) * 3 + height - 1) * 3 bytes, or about 3.6K for a
 // 320x240 RGB image. YUV is not currently supported.
-void OV7670_image_edges(OV7670_colorspace space, uint16_t *pixels,
+void OV7670_image_edges(OV7670_colorspace space, uint16_t* pixels,
                         uint16_t width, uint16_t height, uint8_t sensitivity) {
-
   if (space == OV7670_COLOR_RGB) {
-    uint8_t *buf;
+    uint8_t* buf;
     uint32_t buf_bytes_per_channel = (width + 2) * 3 + height - 1;
-    if ((buf = (uint8_t *)malloc(buf_bytes_per_channel * 3))) {
-      uint8_t *rptr = buf;                          // -> red buffer
-      uint8_t *gptr = &rptr[buf_bytes_per_channel]; // -> green buffer
-      uint8_t *bptr = &gptr[buf_bytes_per_channel]; // -> blue buffer
+    if ((buf = (uint8_t*)malloc(buf_bytes_per_channel * 3))) {
+      uint8_t* rptr = buf;                          // -> red buffer
+      uint8_t* gptr = &rptr[buf_bytes_per_channel]; // -> green buffer
+      uint8_t* bptr = &gptr[buf_bytes_per_channel]; // -> blue buffer
 
       // For each of the three channel pointers (rptr, gptr, bptr),
       // ptr[0] is the first pixel of the row ABOVE the current one,
@@ -511,7 +509,7 @@ void OV7670_image_edges(OV7670_colorspace space, uint16_t *pixels,
 
       uint8_t s2 = sensitivity * 2; // Because green has extra bit
 
-      uint16_t *ptr = pixels; // Dest pointer, back into source image
+      uint16_t* ptr = pixels; // Dest pointer, back into source image
       uint16_t x, y, offset, rgb;
       for (y = 0; y < height; y++) { // For each row of image...
         // Set up 'below' row buffer...

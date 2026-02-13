@@ -33,13 +33,17 @@
  */
 
 #include "Adafruit_OV7670.h"
+
 #include <Arduino.h>
 #include <Wire.h>
 
-Adafruit_OV7670::Adafruit_OV7670(uint8_t addr, OV7670_pins *pins_ptr,
-                                 TwoWire *twi_ptr, OV7670_arch *arch_ptr)
-    : i2c_address(addr & 0x7f), wire(twi_ptr),
-      arch_defaults((arch_ptr == NULL)), buffer(NULL), buffer_size(0) {
+Adafruit_OV7670::Adafruit_OV7670(uint8_t addr, OV7670_pins* pins_ptr,
+                                 TwoWire* twi_ptr, OV7670_arch* arch_ptr)
+    : i2c_address(addr & 0x7f),
+      wire(twi_ptr),
+      arch_defaults((arch_ptr == NULL)),
+      buffer(NULL),
+      buffer_size(0) {
   if (pins_ptr) {
     memcpy(&pins, pins_ptr, sizeof(OV7670_pins));
   }
@@ -61,7 +65,6 @@ Adafruit_OV7670::~Adafruit_OV7670() {
 OV7670_status Adafruit_OV7670::begin(OV7670_colorspace colorspace,
                                      OV7670_size size, float fps,
                                      uint32_t bufsiz) {
-
   wire->begin();
   wire->setClock(100000); // Datasheet claims 400 KHz, but no, use 100 KHz
 
@@ -71,7 +74,7 @@ OV7670_status Adafruit_OV7670::begin(OV7670_colorspace colorspace,
 
   // Allocate buffer for camera
   buffer_size = bufsiz ? bufsiz : _width * _height * sizeof(uint16_t);
-  buffer = (uint16_t *)malloc(buffer_size);
+  buffer = (uint16_t*)malloc(buffer_size);
   if (buffer == NULL) {
     buffer_size = 0;
     return OV7670_STATUS_ERR_MALLOC;
@@ -102,22 +105,22 @@ OV7670_status Adafruit_OV7670::setSize(OV7670_size size, OV7670_realloc allo) {
   bool ra = false;
 
   switch (allo) {
-  case OV7670_REALLOC_NONE:
-    if (new_buffer_size > buffer_size) { // New size won't fit
-      // Don't realloc. Keep current camera settings, return error.
-      return OV7670_STATUS_ERR_MALLOC;
-    }
-    break;
-  case OV7670_REALLOC_CHANGE:
-    ra = (new_buffer_size != buffer_size); // Realloc on size change
-    break;
-  case OV7670_REALLOC_LARGER:
-    ra = (new_buffer_size > buffer_size); // Realloc on size increase
-    break;
+    case OV7670_REALLOC_NONE:
+      if (new_buffer_size > buffer_size) { // New size won't fit
+        // Don't realloc. Keep current camera settings, return error.
+        return OV7670_STATUS_ERR_MALLOC;
+      }
+      break;
+    case OV7670_REALLOC_CHANGE:
+      ra = (new_buffer_size != buffer_size); // Realloc on size change
+      break;
+    case OV7670_REALLOC_LARGER:
+      ra = (new_buffer_size > buffer_size); // Realloc on size increase
+      break;
   }
 
   if (ra) { // Reallocate?
-    uint16_t *new_buffer = (uint16_t *)realloc(buffer, new_buffer_size);
+    uint16_t* new_buffer = (uint16_t*)realloc(buffer, new_buffer_size);
     if (new_buffer == NULL) { // FAIL
       _width = _height = buffer_size = 0;
       buffer = NULL;
@@ -147,12 +150,14 @@ void Adafruit_OV7670::Y2RGB565(void) {
 // so that arch/*.c code can access them here. The Doxygen comments in the
 // .h explain their use in more detail.
 
-void OV7670_print(char *str) { Serial.print(str); }
-
-int OV7670_read_register(void *obj, uint8_t reg) {
-  return ((Adafruit_OV7670 *)obj)->readRegister(reg);
+void OV7670_print(char* str) {
+  Serial.print(str);
 }
 
-void OV7670_write_register(void *obj, uint8_t reg, uint8_t value) {
-  ((Adafruit_OV7670 *)obj)->writeRegister(reg, value);
+int OV7670_read_register(void* obj, uint8_t reg) {
+  return ((Adafruit_OV7670*)obj)->readRegister(reg);
+}
+
+void OV7670_write_register(void* obj, uint8_t reg, uint8_t value) {
+  ((Adafruit_OV7670*)obj)->writeRegister(reg, value);
 }

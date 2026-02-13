@@ -92,9 +92,9 @@ typedef struct {
 
 /** Architecture+platform combination structure. */
 typedef struct {
-  OV7670_arch *arch; ///< Architecture-specific config data
-  OV7670_pins *pins; ///< Physical connection to camera
-  void *platform;    ///< Platform-specific data (e.g. Arduino C++ object)
+  OV7670_arch* arch; ///< Architecture-specific config data
+  OV7670_pins* pins; ///< Physical connection to camera
+  void* platform;    ///< Platform-specific data (e.g. Arduino C++ object)
 } OV7670_host;
 
 #define OV7670_ADDR 0x21 //< Default I2C address if unspecified
@@ -296,7 +296,7 @@ extern "C" {
 // Architecture- and platform-neutral initialization function.
 // Called by the platform init function, this in turn may call an
 // architecture-specific init function.
-OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace colorspace,
+OV7670_status OV7670_begin(OV7670_host* host, OV7670_colorspace colorspace,
                            OV7670_size size, float fps);
 
 // Configure camera frame rate. Actual resulting frame rate (returned) may
@@ -308,35 +308,35 @@ OV7670_status OV7670_begin(OV7670_host *host, OV7670_colorspace colorspace,
 // constraints (e.g. screen) and rounding up to a closer-but-higher frame
 // rate would be problematic). There is no hardcoded set of fixed frame
 // rates because it varies with architecture, depending on OV7670_XCLK_HZ.
-float OV7670_set_fps(void *platform, float fps);
+float OV7670_set_fps(void* platform, float fps);
 
 // Configure camera resolution to one of the supported frame sizes
 // (powers-of-two divisions of VGA -- 640x480 down to 40x30).
-void OV7670_set_size(void *platform, OV7670_size size);
+void OV7670_set_size(void* platform, OV7670_size size);
 
 // Lower-level resolution register fiddling function, exposed so dev code
 // can test variations for OV7670_set_size() windowing defaults.
-void OV7670_frame_control(void *platform, uint8_t size, uint8_t vstart,
+void OV7670_frame_control(void* platform, uint8_t size, uint8_t vstart,
                           uint16_t hstart, uint8_t edge_offset,
                           uint8_t pclk_delay);
 
 // Select one of the camera's night modes (or disable).
 // Trades off frame rate for less grainy images in low light.
-void OV7670_night(void *platform, OV7670_night_mode night);
+void OV7670_night(void* platform, OV7670_night_mode night);
 
 // Flips camera output on horizontal and/or vertical axes.
-void OV7670_flip(void *platform, bool flip_x, bool flip_y);
+void OV7670_flip(void* platform, bool flip_x, bool flip_y);
 
 // Selects one of the camera's test patterns (or disable).
 // See Adafruit_OV7670.h for notes about minor visual bug here.
-void OV7670_test_pattern(void *platform, OV7670_pattern pattern);
+void OV7670_test_pattern(void* platform, OV7670_pattern pattern);
 
 // Convert Y (brightness) component YUV image in RAM to RGB565 big-
 // endian format for preview on TFT display. Data is overwritten in-place,
 // Y is truncated and UV elements are lost. No practical use outside TFT
 // preview. If you need actual grayscale 0-255 data, just access the low
 // byte of each 16-bit YUV pixel.
-void OV7670_Y2RGB565(uint16_t *ptr, uint32_t len);
+void OV7670_Y2RGB565(uint16_t* ptr, uint32_t len);
 
 #ifdef __cplusplus
 };

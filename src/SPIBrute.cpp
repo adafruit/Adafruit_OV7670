@@ -15,28 +15,25 @@
 #include "SPIBrute.h"
 
 // Constructor. Pass SPIClass pointer (e.g. &SPI).
-SPIBrute::SPIBrute(SPIClass *s) : spi(s) {}
+SPIBrute::SPIBrute(SPIClass* s) : spi(s) {}
 
 // Call this function after the SPI peripheral has been started
 // (can't do this in the constructor).
 void SPIBrute::begin(void) {
   // List of SERCOM base addresses by SERCOM #
-  static Sercom *sercomBase[] = {
-    SERCOM0,
-    SERCOM1,
-    SERCOM2,
-    SERCOM3,
+  static Sercom* sercomBase[] = {
+      SERCOM0, SERCOM1, SERCOM2, SERCOM3,
 #if defined(SERCOM4)
-    SERCOM4,
+      SERCOM4,
 #endif
 #if defined(SERCOM5)
-    SERCOM5,
+      SERCOM5,
 #endif
 #if defined(SERCOM6)
-    SERCOM6,
+      SERCOM6,
 #endif
 #if defined(SERCOM7)
-    SERCOM7,
+      SERCOM7,
 #endif
   };
 
@@ -52,7 +49,7 @@ void SPIBrute::begin(void) {
 // Brute force (non-DMA) fast SPI writing function, accesses SPI registers
 // directly. This is "mostly blocking" except for the last byte out. Call
 // wait() before performing another write() or any action on the SPI bus.
-void SPIBrute::write(uint8_t *addr, uint32_t len) {
+void SPIBrute::write(uint8_t* addr, uint32_t len) {
   // Manual byte-by-byte SPI transfer. Have tested & confirmed on scope
   // that there is no inter-byte gap when running this loop...it's as fast
   // as can be. Tried 32-bit SPI transfers...wasn't any faster, in fact
